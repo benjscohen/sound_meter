@@ -71,9 +71,37 @@ nav {
 }
 
 .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 600;
     font-size: 1.1rem;
     letter-spacing: -0.01em;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.logo img {
+    width: 24px;
+    height: 24px;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+    color: var(--text-primary);
 }
 
 /* Buttons */
@@ -231,9 +259,10 @@ nav {
 }
 
 .signature {
-    font-family: cursive;
-    font-size: 1.5rem;
-    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-weight: 500;
+    font-size: 1.2rem;
+    color: var(--text-primary);
 }
 
 /* Footer */
