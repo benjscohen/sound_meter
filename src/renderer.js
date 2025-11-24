@@ -10,36 +10,30 @@ const appContainer = document.getElementById('app-container');
 
 let hideTimeout;
 
-function showControls() {
-    controls.classList.add('visible');
-    if (hideTimeout) {
-        clearTimeout(hideTimeout);
-        hideTimeout = null;
-    }
-}
-
-function hideControls(delay = 2000) {
+function scheduleHide(delay = 3000) {
     if (hideTimeout) clearTimeout(hideTimeout);
+    controls.classList.add('visible');
     hideTimeout = setTimeout(() => {
         controls.classList.remove('visible');
     }, delay);
 }
 
-// Show controls on hover
-appContainer.addEventListener('mouseenter', () => {
-    showControls();
+// Show on hover/move and reset timer
+const onActivity = () => scheduleHide(3000);
+appContainer.addEventListener('mouseenter', onActivity);
+appContainer.addEventListener('mousemove', onActivity);
+
+// Hide quickly when leaving or selecting
+appContainer.addEventListener('mouseleave', () => scheduleHide(500));
+
+micSelect.addEventListener('change', (e) => {
+    startListening(e.target.value);
+    scheduleHide(500);
 });
 
-// Hide controls after delay when leaving
-appContainer.addEventListener('mouseleave', () => {
-    hideControls(2000);
-});
-
-// Also show on mousemove to be safe (in case of window focus changes)
-appContainer.addEventListener('mousemove', () => {
-    showControls();
-    // Optional: reset hide timer if we wanted auto-hide while hovering, 
-    // but requirement says "After a few seconds of NOT hovering"
+sensitivitySelect.addEventListener('change', (e) => {
+    currentSensitivity = parseInt(e.target.value);
+    scheduleHide(500);
 });
 
 let audioContext;
@@ -130,16 +124,6 @@ function updateMeter() {
 
     requestAnimationFrame(updateMeter);
 }
-
-micSelect.addEventListener('change', (e) => {
-    startListening(e.target.value);
-    hideControls(500); // Fade out shortly after selection
-});
-
-sensitivitySelect.addEventListener('change', (e) => {
-    currentSensitivity = parseInt(e.target.value);
-    hideControls(500);
-});
 
 // Initialize
 initSensitivity();
