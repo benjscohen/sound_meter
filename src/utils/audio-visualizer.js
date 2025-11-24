@@ -5,7 +5,9 @@
 const SENSITIVITY_PRESETS = {
     HIGH: 70,   // Reacts to quiet sounds
     MEDIUM: 140, // Default
-    LOW: 210    // Requires loud sounds
+    LOW: 210,    // Requires loud sounds
+    VERY_LOW: 280,
+    ULTRA_LOW: 350
 };
 
 const YELLOW_POINT_RATIO = 60 / 140; // Ratio of yellow point to max sensitivity

@@ -48,7 +48,9 @@ function initSensitivity() {
     const options = [
         { label: 'High Sensitivity', value: presets.HIGH },
         { label: 'Medium Sensitivity', value: presets.MEDIUM },
-        { label: 'Low Sensitivity', value: presets.LOW }
+        { label: 'Low Sensitivity', value: presets.LOW },
+        { label: 'Very Low Sensitivity', value: presets.VERY_LOW },
+        { label: 'Ultra Low Sensitivity', value: presets.ULTRA_LOW }
     ];
 
     sensitivitySelect.innerHTML = '';
