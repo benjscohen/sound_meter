@@ -3,42 +3,51 @@ console.log('Sound Meter Landing Page Loaded');
 
 async function updateDownloadLinks() {
     const repo = 'benjscohen/sound_meter';
-    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+    const latestUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+    const allReleasesUrl = `https://api.github.com/repos/${repo}/releases`;
 
     try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error('Network response was not ok');
+        // Fetch Latest Release for Download Link
+        const latestResponse = await fetch(latestUrl);
+        if (latestResponse.ok) {
+            const data = await latestResponse.json();
+            const version = data.tag_name;
+            const dmgAsset = data.assets.find(asset => asset.name.endsWith('.dmg'));
 
-        const data = await response.json();
-        const version = data.tag_name;
+            if (dmgAsset) {
+                const downloadUrl = dmgAsset.browser_download_url;
 
-        // Find the DMG asset
-        const dmgAsset = data.assets.find(asset => asset.name.endsWith('.dmg'));
+                const heroBtn = document.getElementById('download-btn');
+                if (heroBtn) heroBtn.href = downloadUrl;
 
-        if (dmgAsset) {
-            const downloadUrl = dmgAsset.browser_download_url;
+                const navBtn = document.getElementById('nav-download-btn');
+                if (navBtn) navBtn.href = downloadUrl;
 
-            // Update Hero Button
-            const heroBtn = document.getElementById('download-btn');
-            if (heroBtn) {
-                heroBtn.href = downloadUrl;
-            }
-
-            // Update Nav Button
-            const navBtn = document.getElementById('nav-download-btn');
-            if (navBtn) {
-                navBtn.href = downloadUrl;
-            }
-
-            // Update Version Text
-            const versionText = document.getElementById('version-text');
-            if (versionText) {
-                versionText.textContent = `${version} • macOS 13+`;
+                const versionText = document.getElementById('version-text');
+                if (versionText) versionText.textContent = `${version} • macOS 13+`;
             }
         }
+
+        // Fetch All Releases for Total Download Count
+        const allResponse = await fetch(allReleasesUrl);
+        if (allResponse.ok) {
+            const releases = await allResponse.json();
+            let totalDownloads = 0;
+
+            releases.forEach(release => {
+                release.assets.forEach(asset => {
+                    totalDownloads += asset.download_count;
+                });
+            });
+
+            const downloadCountText = document.getElementById('download-count');
+            if (downloadCountText && totalDownloads > 0) {
+                downloadCountText.textContent = `${totalDownloads.toLocaleString()} Downloads`;
+            }
+        }
+
     } catch (error) {
-        console.error('Error fetching latest release:', error);
-        // Fallback links are already in HTML (pointing to /releases/latest)
+        console.error('Error fetching release data:', error);
     }
 }
 
