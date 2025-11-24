@@ -1,5 +1,9 @@
 // Main JS file
 console.log('Sound Meter Landing Page Loaded');
+import { inject } from '@vercel/analytics';
+
+inject();
+
 
 async function updateDownloadLinks() {
     const repo = 'benjscohen/sound_meter';
