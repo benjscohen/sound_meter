@@ -1,27 +1,36 @@
-# Sound Meter App
+# Sound Meter
 
-A minimalist, floating macOS application that visualizes sound levels from your microphone.
+A minimalist macOS desktop application that displays real-time sound decibel levels.
 
 ## Features
-- **Always on Top**: Floats above all other windows.
-- **Minimalist Design**: A simple, glowing circle that reacts to sound.
-- **Visual Feedback**: Changes size and color (Green -> Yellow -> Red) based on volume.
-- **Microphone Selection**: Choose your input device from a hidden dropdown (appears on hover).
 
-## How to Run Locally
+- 🎤 Real-time audio level monitoring
+- 🎨 Visual feedback with color changes based on sound intensity
+- 🖥️ Floats above all windows
+- 📊 Decibel (dB) display
 
-1.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
+## Installation
 
-2.  **Start the Application**:
-    ```bash
-    npm start
-    ```
+Download the latest release from the [Releases](https://github.com/benjscohen/sound_meter/releases) page.
 
-## Usage
-- The app will appear in the top-right corner of your screen.
-- Speak or make noise to see the circle react.
-- Hover over the bottom of the window to reveal the microphone selector if you need to change inputs.
-- Drag the window to reposition it (click and drag anywhere on the window).
+### macOS Security Note
+
+If you see a message saying **"Sound Meter" is damaged and can't be opened**, follow the steps in [INSTALL.md](INSTALL.md).
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run the app
+npm start
+```
+
+## Building
+
+Builds are automated via GitHub Actions. Each commit to the main branch triggers a build that produces a signed and notarized DMG.
+
+## License
+
+MIT

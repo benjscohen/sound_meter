@@ -20,3 +20,10 @@ dist
 .vscode
 .idea
 *.swp
+
+# Certificates and temp files
+*.p12
+*.cer
+*.certSigningRequest
+temp*
+certificate*

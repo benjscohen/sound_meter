@@ -4,8 +4,7 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder"
+    "start": "electron ."
   },
   "build": {
     "appId": "com.benjscohen.soundmeter",
@@ -15,8 +14,13 @@
         "dmg",
         "zip"
       ],
-      "icon": "sound_meter.icns"
+      "icon": "sound_meter.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
     },
+    "afterSign": "scripts/notarize.js",
     "dmg": {
       "contents": [
         {
@@ -41,6 +45,8 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
+    "dotenv": "^17.2.3",
     "electron": "^39.2.3",
     "electron-builder": "^26.0.12"
   }
