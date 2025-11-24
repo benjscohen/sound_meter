@@ -16,6 +16,7 @@
         "zip"
       ],
       "icon": "sound_meter.icns",
+      "identity": "PRM Solutions, Inc",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "entitlements.mac.plist",
