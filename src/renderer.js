@@ -52,9 +52,9 @@ function initSensitivity() {
     const presets = CONSTANTS.SENSITIVITY_PRESETS;
     // Order: High (sensitive), Medium, Low (needs loud sound)
     const options = [
-        { label: 'High Sens', value: presets.HIGH },
-        { label: 'Med Sens', value: presets.MEDIUM },
-        { label: 'Low Sens', value: presets.LOW }
+        { label: 'High Sensitivity', value: presets.HIGH },
+        { label: 'Medium Sensitivity', value: presets.MEDIUM },
+        { label: 'Low Sensitivity', value: presets.LOW }
     ];
 
     sensitivitySelect.innerHTML = '';
