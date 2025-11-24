@@ -1,7 +1,11 @@
 {
   "name": "sound_meter",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benjscohen/sound_meter.git"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
