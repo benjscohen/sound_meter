@@ -23,8 +23,13 @@ function createWindow() {
         alwaysOnTop: true,
         resizable: false,
         hasShadow: false,
-        skipTaskbar: true, // Optional: keeps it out of the dock/taskbar if desired, but maybe keep it for now
+        skipTaskbar: true,
+        type: 'panel', // Helps with floating behavior on macOS
     });
+
+    // Critical for macOS to stay on top of full-screen apps
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    mainWindow.setAlwaysOnTop(true, 'floating');
 
     mainWindow.loadFile('src/index.html');
 

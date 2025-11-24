@@ -131,4 +131,6 @@ function updateMeter() {
 initSensitivity();
 getMicrophones().then(() => {
     startListening();
+    // Show controls on start so user knows they are there
+    scheduleHide(4000);
 });
