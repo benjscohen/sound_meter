@@ -1,10 +1,26 @@
 const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
-const { autoUpdater } = require('electron-updater');
 
-// Configure autoUpdater
-autoUpdater.logger = require("electron-log");
-autoUpdater.logger.transports.file.level = "info";
+function initAutoUpdater() {
+    try {
+        const { autoUpdater } = require('electron-updater');
+        const log = require("electron-log");
+
+        // Configure autoUpdater
+        autoUpdater.logger = log;
+        autoUpdater.logger.transports.file.level = "info";
+
+        // Check for updates immediately
+        autoUpdater.checkForUpdatesAndNotify();
+
+        // Check for updates every hour (60 * 60 * 1000 ms)
+        setInterval(() => {
+            autoUpdater.checkForUpdatesAndNotify();
+        }, 60 * 60 * 1000);
+    } catch (error) {
+        console.error('Failed to initialize auto-updater:', error);
+    }
+}
 
 function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -34,18 +50,18 @@ function createWindow() {
     mainWindow.loadFile('src/index.html');
 
     // mainWindow.webContents.openDevTools({ mode: 'detach' }); // For debugging
+
+    // Defer heavy background tasks until after the window is shown
+    mainWindow.once('ready-to-show', () => {
+        // Initialize auto-updater with a slight delay to prioritize UI responsiveness
+        setTimeout(() => {
+            initAutoUpdater();
+        }, 2000);
+    });
 }
 
 app.whenReady().then(() => {
     createWindow();
-
-    // Check for updates immediately
-    autoUpdater.checkForUpdatesAndNotify();
-
-    // Check for updates every hour (60 * 60 * 1000 ms)
-    setInterval(() => {
-        autoUpdater.checkForUpdatesAndNotify();
-    }, 60 * 60 * 1000);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
