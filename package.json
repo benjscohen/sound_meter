@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "electron-builder"
   },
   "build": {
+    "publish": null,
     "appId": "com.benjscohen.soundmeter",
     "productName": "Sound Meter",
     "mac": {
