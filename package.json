@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -55,5 +55,8 @@
     "dotenv": "^17.2.3",
     "electron": "^39.2.3",
     "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }

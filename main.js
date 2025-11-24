@@ -1,5 +1,10 @@
 const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
+
+// Configure autoUpdater
+autoUpdater.logger = require("electron-log");
+autoUpdater.logger.transports.file.level = "info";
 
 function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -22,12 +27,15 @@ function createWindow() {
     });
 
     mainWindow.loadFile('src/index.html');
-    
+
     // mainWindow.webContents.openDevTools({ mode: 'detach' }); // For debugging
 }
 
 app.whenReady().then(() => {
     createWindow();
+
+    // Check for updates
+    autoUpdater.checkForUpdatesAndNotify();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
