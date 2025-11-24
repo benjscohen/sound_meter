@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.0.3",
+d  "version": "1.0.4",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -21,7 +21,10 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist"
+      "entitlementsInherit": "entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone to measure sound levels. No audio is recorded or transmitted."
+      }
     },
     "afterSign": "scripts/notarize.js",
     "dmg": {
