@@ -1,5 +1,7 @@
-const { app, BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+
+let tray = null;
 
 function initAutoUpdater() {
     try {
@@ -20,6 +22,33 @@ function initAutoUpdater() {
     } catch (error) {
         console.error('Failed to initialize auto-updater:', error);
     }
+}
+
+function createTray() {
+    const iconPath = path.join(__dirname, 'icon.png');
+    const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+
+    tray = new Tray(trayIcon);
+    tray.setToolTip('Sound Meter');
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Show Sound Meter',
+            click: () => {
+                const wins = BrowserWindow.getAllWindows();
+                if (wins.length > 0) {
+                    wins[0].show();
+                    wins[0].focus();
+                } else {
+                    createWindow();
+                }
+            }
+        },
+        { type: 'separator' },
+        { label: 'Quit', click: () => app.quit() }
+    ]);
+
+    tray.setContextMenu(contextMenu);
 }
 
 function createWindow() {
@@ -61,6 +90,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    createTray();
     createWindow();
 
     app.on('activate', () => {
@@ -71,7 +101,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+    // Do not quit when window is closed, keep tray active
+    // if (process.platform !== 'darwin') {
+    //     app.quit();
+    // }
 });
