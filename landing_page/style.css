@@ -145,10 +145,11 @@ nav {
 
 .hero h1 {
     font-size: 3.5rem;
-    line-height: 1.05;
+    line-height: 1.2;
     font-weight: 700;
     letter-spacing: -0.02em;
     margin-bottom: 1rem;
+    padding-bottom: 0.1em;
     background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
     -webkit-background-clip: text;
     background-clip: text;
