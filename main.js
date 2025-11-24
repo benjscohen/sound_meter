@@ -34,8 +34,13 @@ function createWindow() {
 app.whenReady().then(() => {
     createWindow();
 
-    // Check for updates
+    // Check for updates immediately
     autoUpdater.checkForUpdatesAndNotify();
+
+    // Check for updates every hour (60 * 60 * 1000 ms)
+    setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+    }, 60 * 60 * 1000);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
