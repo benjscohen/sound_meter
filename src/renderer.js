@@ -3,6 +3,42 @@ const { ipcRenderer } = require('electron');
 
 const meterCircle = document.getElementById('meter-circle');
 const micSelect = document.getElementById('mic-select');
+const controls = document.getElementById('controls');
+const appContainer = document.getElementById('app-container');
+
+let hideTimeout;
+
+function showControls() {
+    controls.classList.add('visible');
+    if (hideTimeout) {
+        clearTimeout(hideTimeout);
+        hideTimeout = null;
+    }
+}
+
+function hideControls(delay = 2000) {
+    if (hideTimeout) clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => {
+        controls.classList.remove('visible');
+    }, delay);
+}
+
+// Show controls on hover
+appContainer.addEventListener('mouseenter', () => {
+    showControls();
+});
+
+// Hide controls after delay when leaving
+appContainer.addEventListener('mouseleave', () => {
+    hideControls(2000);
+});
+
+// Also show on mousemove to be safe (in case of window focus changes)
+appContainer.addEventListener('mousemove', () => {
+    showControls();
+    // Optional: reset hide timer if we wanted auto-hide while hovering, 
+    // but requirement says "After a few seconds of NOT hovering"
+});
 
 let audioContext;
 let analyser;
@@ -103,6 +139,7 @@ function updateMeter() {
 
 micSelect.addEventListener('change', (e) => {
     startListening(e.target.value);
+    hideControls(500); // Fade out shortly after selection
 });
 
 // Initialize
