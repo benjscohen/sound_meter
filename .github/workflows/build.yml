@@ -31,16 +31,7 @@ jobs:
         CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
         CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      run: |
-        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-        CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
-        echo -n "$CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-        security import $CERTIFICATE_PATH -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-        security list-keychain -d user -s $KEYCHAIN_PATH
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      run: ./scripts/ci_import_cert.sh
     
     - name: Build and Notarize App
       env:
