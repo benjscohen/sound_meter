@@ -1,5 +1,6 @@
 // Renderer process
 const { ipcRenderer } = require('electron');
+const { calculateSize, calculateColor } = require('./utils/audio-visualizer');
 
 const meterCircle = document.getElementById('meter-circle');
 const micSelect = document.getElementById('mic-select');
@@ -97,37 +98,9 @@ function updateMeter() {
     }
     const average = sum / dataArray.length;
 
-    // Map average (0-255) to visual properties
-    // Increased sensitivity:
-    // Yellow point: 60 (was 128)
-    // Red point: 140 (was 255)
-
-    const sensitivityMax = 140;
-    const yellowPoint = 60;
-
-    // Size mapping
-    // Minimal size: 50px, Max size: 150px (at sensitivityMax)
-    const size = 50 + Math.min(average / sensitivityMax, 1) * 100;
-
-    // Color mapping
-    // Green (low) -> Yellow (medium) -> Red (high)
-    let r, g, b;
-    if (average < yellowPoint) {
-        // Green to Yellow
-        r = Math.floor((average / yellowPoint) * 255);
-        g = 255;
-        b = 0;
-    } else {
-        // Yellow to Red
-        // Clamp average to sensitivityMax for color calculation
-        const clampedAvg = Math.min(average, sensitivityMax);
-        const range = sensitivityMax - yellowPoint;
-        const progress = (clampedAvg - yellowPoint) / range;
-
-        r = 255;
-        g = Math.floor(255 - (progress * 255));
-        b = 0;
-    }
+    // Calculate visual properties using the utility module
+    const size = calculateSize(average);
+    const { r, g, b } = calculateColor(average);
 
     meterCircle.style.width = `${size}px`;
     meterCircle.style.height = `${size}px`;
