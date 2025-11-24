@@ -64,8 +64,17 @@ function initSensitivity() {
 }
 
 async function getMicrophones() {
+    const currentDeviceId = micSelect.value;
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioDevices = devices.filter(device => device.kind === 'audioinput');
+
+    // Check if list actually changed to avoid unnecessary DOM updates
+    const currentOptions = Array.from(micSelect.options).map(o => o.value);
+    const newDeviceIds = audioDevices.map(d => d.deviceId);
+    const hasChanged = currentOptions.length !== newDeviceIds.length ||
+        !currentOptions.every((val, index) => val === newDeviceIds[index]);
+
+    if (!hasChanged && micSelect.options.length > 0) return;
 
     micSelect.innerHTML = '';
     audioDevices.forEach(device => {
@@ -74,7 +83,25 @@ async function getMicrophones() {
         option.text = device.label || `Microphone ${micSelect.length + 1}`;
         micSelect.appendChild(option);
     });
+
+    // Restore selection
+    if (currentDeviceId && audioDevices.some(d => d.deviceId === currentDeviceId)) {
+        micSelect.value = currentDeviceId;
+    } else if (audioDevices.length > 0) {
+        // Default to first if previous selection is gone or nothing selected
+        micSelect.value = audioDevices[0].deviceId;
+        // Only restart if we actually switched devices (and not just on initial load)
+        if (currentDeviceId) {
+            startListening(micSelect.value);
+        }
+    }
 }
+
+// Update list when devices are connected/disconnected
+navigator.mediaDevices.ondevicechange = getMicrophones;
+
+// Also check when user interacts with the control
+micSelect.addEventListener('mouseenter', getMicrophones);
 
 async function startListening(deviceId) {
     if (audioContext) {
