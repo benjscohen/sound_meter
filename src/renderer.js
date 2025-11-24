@@ -1,9 +1,10 @@
 // Renderer process
 const { ipcRenderer } = require('electron');
-const { calculateSize, calculateColor } = require('./utils/audio-visualizer');
+const { calculateSize, calculateColor, CONSTANTS } = require('./utils/audio-visualizer');
 
 const meterCircle = document.getElementById('meter-circle');
 const micSelect = document.getElementById('mic-select');
+const sensitivitySelect = document.getElementById('sensitivity-select');
 const controls = document.getElementById('controls');
 const appContainer = document.getElementById('app-container');
 
@@ -45,6 +46,26 @@ let audioContext;
 let analyser;
 let microphone;
 let dataArray;
+let currentSensitivity = CONSTANTS.SENSITIVITY_PRESETS.MEDIUM;
+
+function initSensitivity() {
+    const presets = CONSTANTS.SENSITIVITY_PRESETS;
+    // Order: High (sensitive), Medium, Low (needs loud sound)
+    const options = [
+        { label: 'High Sens', value: presets.HIGH },
+        { label: 'Med Sens', value: presets.MEDIUM },
+        { label: 'Low Sens', value: presets.LOW }
+    ];
+
+    sensitivitySelect.innerHTML = '';
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.text = opt.label;
+        if (opt.value === currentSensitivity) option.selected = true;
+        sensitivitySelect.appendChild(option);
+    });
+}
 
 async function getMicrophones() {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -99,8 +120,8 @@ function updateMeter() {
     const average = sum / dataArray.length;
 
     // Calculate visual properties using the utility module
-    const size = calculateSize(average);
-    const { r, g, b } = calculateColor(average);
+    const size = calculateSize(average, currentSensitivity);
+    const { r, g, b } = calculateColor(average, currentSensitivity);
 
     meterCircle.style.width = `${size}px`;
     meterCircle.style.height = `${size}px`;
@@ -115,7 +136,13 @@ micSelect.addEventListener('change', (e) => {
     hideControls(500); // Fade out shortly after selection
 });
 
+sensitivitySelect.addEventListener('change', (e) => {
+    currentSensitivity = parseInt(e.target.value);
+    hideControls(500);
+});
+
 // Initialize
+initSensitivity();
 getMicrophones().then(() => {
     startListening();
 });

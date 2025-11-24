@@ -47,7 +47,8 @@ body {
     pointer-events: auto;
 }
 
-#mic-select {
+#mic-select,
+#sensitivity-select {
     background: rgba(0, 0, 0, 0.6);
     color: white;
     border: none;
@@ -56,4 +57,5 @@ body {
     font-size: 10px;
     max-width: 120px;
     outline: none;
+    margin: 0 2px;
 }

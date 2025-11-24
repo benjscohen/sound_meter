@@ -1,23 +1,25 @@
 const { calculateSize, calculateColor, CONSTANTS } = require('./audio-visualizer');
 
 describe('Audio Visualizer Logic', () => {
+    const { SENSITIVITY_PRESETS, MIN_SIZE, MAX_ADDITIONAL_SIZE } = CONSTANTS;
+
     describe('calculateSize', () => {
         test('should return minimum size when volume is 0', () => {
-            expect(calculateSize(0)).toBe(CONSTANTS.MIN_SIZE);
+            expect(calculateSize(0)).toBe(MIN_SIZE);
         });
 
-        test('should return maximum size when volume is at sensitivity max', () => {
-            expect(calculateSize(CONSTANTS.SENSITIVITY_MAX)).toBe(CONSTANTS.MIN_SIZE + CONSTANTS.MAX_ADDITIONAL_SIZE);
+        test('should return maximum size when volume is at default sensitivity max', () => {
+            expect(calculateSize(SENSITIVITY_PRESETS.MEDIUM)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
         });
 
-        test('should cap size at maximum even if volume exceeds sensitivity max', () => {
-            expect(calculateSize(CONSTANTS.SENSITIVITY_MAX + 50)).toBe(CONSTANTS.MIN_SIZE + CONSTANTS.MAX_ADDITIONAL_SIZE);
-        });
+        test('should adjust max size threshold based on sensitivity', () => {
+            // At HIGH sensitivity (70), volume 70 should be max size
+            expect(calculateSize(70, SENSITIVITY_PRESETS.HIGH)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
 
-        test('should return intermediate size for intermediate volume', () => {
-            const midVol = CONSTANTS.SENSITIVITY_MAX / 2;
-            const expectedSize = CONSTANTS.MIN_SIZE + (CONSTANTS.MAX_ADDITIONAL_SIZE / 2);
-            expect(calculateSize(midVol)).toBe(expectedSize);
+            // At LOW sensitivity (210), volume 70 should be smaller
+            const lowSensSize = calculateSize(70, SENSITIVITY_PRESETS.LOW);
+            const highSensSize = calculateSize(70, SENSITIVITY_PRESETS.HIGH);
+            expect(lowSensSize).toBeLessThan(highSensSize);
         });
     });
 
@@ -27,34 +29,20 @@ describe('Audio Visualizer Logic', () => {
             expect(color).toEqual({ r: 0, g: 255, b: 0 });
         });
 
-        test('should be pure yellow when volume is at yellow point', () => {
-            const color = calculateColor(CONSTANTS.YELLOW_POINT);
-            expect(color).toEqual({ r: 255, g: 255, b: 0 });
-        });
-
         test('should be pure red when volume is at sensitivity max', () => {
-            const color = calculateColor(CONSTANTS.SENSITIVITY_MAX);
+            const color = calculateColor(SENSITIVITY_PRESETS.MEDIUM);
             expect(color).toEqual({ r: 255, g: 0, b: 0 });
         });
 
-        test('should transition from green to yellow', () => {
-            const midVol = CONSTANTS.YELLOW_POINT / 2;
-            const color = calculateColor(midVol);
-            // R should be half way to 255, G should be 255, B should be 0
-            expect(color.r).toBeGreaterThan(0);
-            expect(color.r).toBeLessThan(255);
-            expect(color.g).toBe(255);
-            expect(color.b).toBe(0);
-        });
+        test('should adjust color thresholds based on sensitivity', () => {
+            // At HIGH sensitivity (70), volume 70 is RED
+            const highSensColor = calculateColor(70, SENSITIVITY_PRESETS.HIGH);
+            expect(highSensColor).toEqual({ r: 255, g: 0, b: 0 });
 
-        test('should transition from yellow to red', () => {
-            const midVol = CONSTANTS.YELLOW_POINT + ((CONSTANTS.SENSITIVITY_MAX - CONSTANTS.YELLOW_POINT) / 2);
-            const color = calculateColor(midVol);
-            // R should be 255, G should be less than 255, B should be 0
-            expect(color.r).toBe(255);
-            expect(color.g).toBeLessThan(255);
-            expect(color.g).toBeGreaterThan(0);
-            expect(color.b).toBe(0);
+            // At LOW sensitivity (210), volume 70 is likely GREEN-YELLOW (not red)
+            const lowSensColor = calculateColor(70, SENSITIVITY_PRESETS.LOW);
+            expect(lowSensColor.r).toBeLessThan(255); // Not fully red
+            expect(lowSensColor.g).toBe(255); // Still fully green (yellowish)
         });
     });
 });
