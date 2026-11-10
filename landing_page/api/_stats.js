@@ -2,7 +2,7 @@
 // (shhh.it.com/s?c=93&l=4200&...), so nothing is stored on a server, and
 // every field is a bounded number, so a link can't smuggle in text.
 //
-// The app builds these links in src/main/share.js; scripts/check-share.mjs
+// The app builds these links in src/main/share.js; scripts/check-site.mjs
 // keeps the two sides in agreement.
 //
 //   c  calm share of the week, percent        l  seconds too loud

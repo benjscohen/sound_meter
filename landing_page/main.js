@@ -1,10 +1,10 @@
 import { inject } from '@vercel/analytics';
+import { REPO, chipFromHints, installers, revealForVersion } from './release.js';
 
 inject();
 
-const REPO = 'benjscohen/sound_meter';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
-const CACHE_KEY = 'shhh-release-v1';
+const CACHE_KEY = 'shhh-release-v2';
 const CACHE_MS = 10 * 60 * 1000;
 
 const $ = (id) => document.getElementById(id);
@@ -143,6 +143,14 @@ if (reducedMotion) {
 
 /* ----------------------------------------------------------- page polish */
 
+// The film plays quietly on a loop, unless you've asked for less motion.
+const film = $('film');
+if (reducedMotion) {
+    film.removeAttribute('autoplay');
+    film.pause();
+    film.controls = true;
+}
+
 const nav = $('nav');
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12);
 window.addEventListener('scroll', onScroll, { passive: true });
@@ -150,7 +158,7 @@ onScroll();
 
 // Fade sections in as they scroll into view.
 const revealTargets = document.querySelectorAll(
-    '.section-head, .zone, .feature, .step, .split-copy, .insights-card, .story, .faq, .closing-inner');
+    '.section-head, .zone, .film, .feature, .step, .split-copy, .insights-card, .story, .faq, .closing-inner');
 const revealer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
         if (!entry.isIntersecting) continue;
@@ -202,16 +210,53 @@ document.querySelectorAll('[data-download]').forEach((link) => {
     });
 });
 
-function compareVersions(a, b) {
-    const pa = a.split('.').map(Number);
-    const pb = b.split('.').map(Number);
-    for (let i = 0; i < 3; i++) {
-        if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+// Macs come with either Apple silicon or an Intel chip, and each has its own
+// (smaller) download. Gather what the browser will say and let
+// chipFromHints decide.
+async function detectChip() {
+    const hints = {};
+    try {
+        hints.architecture = (await navigator.userAgentData.getHighEntropyValues(['architecture'])).architecture;
+    } catch {
+        // Not Chromium.
     }
-    return 0;
+    try {
+        const gl = document.createElement('canvas').getContext('webgl');
+        const info = gl.getExtension('WEBGL_debug_renderer_info');
+        hints.renderer = gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
+    } catch {
+        // No WebGL.
+    }
+    return chipFromHints(hints);
 }
 
-function applyRelease({ version, url, downloads }) {
+const CHIPS = { arm64: 'Apple silicon', x64: 'Intel' };
+
+async function chooseDownload(urls) {
+    if (!urls.arm64 || !urls.x64) return urls.any;
+    let chip = await detectChip();
+    const show = () => {
+        const other = chip === 'arm64' ? 'x64' : 'arm64';
+        document.querySelectorAll('[data-download]').forEach((link) => { link.href = urls[chip]; });
+        // Say which build this is, right beside every download button, with a
+        // one-click way to get the other.
+        document.querySelectorAll('.chip-line').forEach((line) => {
+            line.querySelector('.chip-name').textContent = `For ${CHIPS[chip]} Macs.`;
+            line.querySelector('.chip-switch').textContent = `Have an ${CHIPS[other]} Mac? Switch`;
+            line.hidden = !isMac;
+        });
+    };
+    document.querySelectorAll('.chip-switch').forEach((link) => link.addEventListener('click', (event) => {
+        event.preventDefault();
+        chip = chip === 'arm64' ? 'x64' : 'arm64';
+        show();
+    }));
+    show();
+    return urls[chip];
+}
+
+async function applyRelease({ version, urls, downloads }) {
+    const url = urls && await chooseDownload(urls);
     if (url) {
         document.querySelectorAll('[data-download]').forEach((link) => {
             link.href = url;
@@ -221,9 +266,7 @@ function applyRelease({ version, url, downloads }) {
     if (version) {
         $('version-text').textContent = `Version ${version}`;
         // Sections describing newer features appear once that release is out.
-        document.querySelectorAll('[data-min-version]').forEach((section) => {
-            section.hidden = compareVersions(version, section.dataset.minVersion) < 0;
-        });
+        revealForVersion(version);
     }
     if (downloads >= 25) {
         const count = $('download-count');
@@ -239,7 +282,6 @@ async function fetchRelease() {
     if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
     const releases = (await response.json()).filter((r) => !r.draft && !r.prerelease);
     const latest = releases[0];
-    const dmg = latest?.assets.find((asset) => asset.name.endsWith('.dmg'));
 
     // Count people, not auto-update pings: only the installer and app archive.
     const downloads = releases
@@ -249,7 +291,7 @@ async function fetchRelease() {
 
     return {
         version: latest ? latest.tag_name.replace(/^v/, '') : null,
-        url: dmg ? dmg.browser_download_url : null,
+        urls: installers(latest?.assets),
         downloads
     };
 }
@@ -258,7 +300,7 @@ async function loadRelease() {
     try {
         const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
         if (cached && Date.now() - cached.at < CACHE_MS) {
-            applyRelease(cached.release);
+            await applyRelease(cached.release);
             return;
         }
     } catch {
@@ -267,7 +309,7 @@ async function loadRelease() {
 
     try {
         const release = await fetchRelease();
-        applyRelease(release);
+        await applyRelease(release);
         try {
             sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), release }));
         } catch {

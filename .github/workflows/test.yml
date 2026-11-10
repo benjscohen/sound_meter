@@ -36,5 +36,5 @@ jobs:
         npm ci
         npm run build
 
-    - name: Check share links against the site
-      run: npm run check:share
+    - name: Check the site's sharing and download logic
+      run: npm run check:site

@@ -74,16 +74,28 @@ describe('createNative with the helper', () => {
         });
 
         expect(native.available).toBe(true);
-        expect(await native.micApp()).toBe('Zoom');
+        expect(await native.micState()).toEqual({ supported: true, app: 'Zoom' });
         expect(await native.calendarStatus()).toBe('granted');
         expect(await native.calendarRequest()).toBe('denied');
         expect(await native.calendarEvents(500.4, 2500.2)).toEqual([{ title: 'Sync', start: 1000, end: 2000, people: ['Maya'] }]);
         expect(calls.at(-1)).toEqual(['calendar-events', '500', '2501']);
     });
 
+    test('a reply without a clear answer is "unknown", not "unsupported"', async () => {
+        const odd = createNative({ helperPath, run: replying(() => ({ apps: [] })) });
+        expect(await odd.micState()).toBeNull();
+    });
+
+    test('reports when macOS cannot tell which apps use the microphone', async () => {
+        const old = createNative({ helperPath, run: replying(() => ({ supported: false, apps: [] })) });
+        expect(await old.micState()).toEqual({ supported: false, app: null });
+        const idle = createNative({ helperPath, run: replying(() => ({ supported: true, apps: [] })) });
+        expect(await idle.micState()).toEqual({ supported: true, app: null });
+    });
+
     test('degrades quietly when the helper fails or talks nonsense', async () => {
         const failing = createNative({ helperPath, run: (f, a, o, callback) => callback(new Error('boom')) });
-        expect(await failing.micApp()).toBeNull();
+        expect(await failing.micState()).toBeNull();
         expect(await failing.calendarStatus()).toBe('unavailable');
         expect(await failing.calendarEvents(0, 10)).toEqual([]);
 
@@ -96,7 +108,7 @@ describe('createNative with the helper', () => {
         const run = jest.fn();
         const native = createNative({ helperPath: '/nowhere/sm-helper', run });
         expect(native.available).toBe(false);
-        expect(await native.micApp()).toBeNull();
+        expect(await native.micState()).toBeNull();
         expect(await native.calendarStatus()).toBe('unavailable');
         expect(run).not.toHaveBeenCalled();
     });
@@ -120,7 +132,7 @@ describe('createNative with fixtures', () => {
 
         const native = createNative({ fixturesPath, ownBundleIds: OWN });
         expect(native.available).toBe(true);
-        expect(await native.micApp()).toBe('FaceTime');
+        expect(await native.micState()).toEqual({ supported: true, app: 'FaceTime' });
         expect(await native.calendarStatus()).toBe('not-determined');
         expect(await native.calendarEvents(0, 5000)).toEqual([]);
         expect(await native.calendarRequest()).toBe('granted');

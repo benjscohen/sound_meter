@@ -4,7 +4,10 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 
 ## Features
 
-- **Glanceable feedback:** a floating orb that grows and shifts green → amber → red as you get louder.
+- **Glanceable feedback:** a floating orb that grows and shifts green → amber → red as you get louder. Three sizes, three opacities, and optional level symbols for when colour alone is hard to read.
+- **Automatic sensitivity:** learns your normal speaking level from less than a minute of talking, once, then leaves it alone. Presets and “Relearn My Voice” are in the menu.
+- **Listen only during calls:** hides the orb and releases the microphone unless another app is using it, with a short grace period so muting doesn't make it blink away.
+- **Notifications, both opt-in:** a quiet nudge after sustained loudness, and a weekly note that your week is ready (never during a call), which opens your share card.
 - **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
 - **Click for everything:** click the orb (or the menu-bar icon) to switch microphone, change sensitivity, pause, or open Insights. Drag it anywhere; it remembers where you put it.
 - **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
@@ -46,7 +49,8 @@ npm start
 
 ```bash
 npm test         # unit tests (meter maths, history store, settings)
-npm run check:share   # app-built share links vs. the website's share page and preview image
+npm run demo          # re-renders the website film from the smoke-test screenshots (needs ffmpeg)
+npm run check:site    # the website's logic: share links, share page, preview image, download picking
 npm run smoke    # boots the real app with a fake microphone, walks through
                  # onboarding, the meter and Insights, and saves screenshots to ./shots
 ```
@@ -67,6 +71,7 @@ The `landing_page/` directory contains the source code for the product website (
 
 - **Live Download Count:** The site fetches data from the GitHub API to display the total number of downloads across all releases in real-time.
 - **Dynamic Links:** Download buttons automatically point to the latest available release artifact.
+- **Pages:** `/changelog` and `/privacy` are plain HTML pages built by Vite; changelog entries for a version appear once that version is released.
 - **Share pages:** `/s?…` (served by `landing_page/api/share.js`) shows a shared week, and `/api/og` renders its link-preview image. Both are stateless: every number comes from the query string and is range-checked.
 
 ## Build & Release
@@ -79,7 +84,7 @@ This project uses **GitHub Actions** for a fully automated CI/CD pipeline.
     2.  Builds the application.
     3.  Signs the code with an Apple Developer ID.
     4.  Notarizes the app with Apple.
-    5.  Publishes a new Release to GitHub with a signed universal (Apple silicon + Intel) `.dmg` and auto-update artifacts.
+    5.  Publishes a new Release to GitHub with signed `.dmg` installers for Apple silicon (`-arm64`) and Intel (`-x64`), plus auto-update artifacts.
 
 ### Secrets
 

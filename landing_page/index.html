@@ -40,6 +40,7 @@
                 <a href="#how">How it works</a>
                 <a href="#install">Install</a>
                 <a href="#faq">FAQ</a>
+                <a href="/changelog">Changelog</a>
                 <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">GitHub</a>
             </nav>
             <a class="btn btn-dark btn-sm" data-download
@@ -73,6 +74,9 @@
                         <span id="version-text">Latest version</span>
                         <span>macOS 13 or later</span>
                         <span id="download-count" hidden></span>
+                    </p>
+                    <p class="other-device chip-line" hidden>
+                        <span class="chip-name"></span> <a class="link chip-switch" href="#"></a>
                     </p>
                     <p class="other-device" id="other-device" hidden>
                         Sound Meter runs on Mac.
@@ -139,6 +143,13 @@
                         <p>Big and red. Take a breath, bring it down, and watch it settle back to green.</p>
                     </article>
                 </div>
+
+                <figure class="film card">
+                    <video id="film" autoplay muted loop playsinline preload="metadata" poster="/demo-poster.jpg"
+                        aria-label="A short tour of Sound Meter: the orb reacting to a voice, then Insights, Trends and sharing">
+                        <source src="/demo.mp4" type="video/mp4">
+                    </video>
+                </figure>
             </div>
         </section>
 
@@ -178,7 +189,8 @@
                             </svg></span>
                         <h3>Tuned to you</h3>
                         <p>Five sensitivity levels, from a whisper-quiet room to a noisy open office or a hot
-                            mic.</p>
+                            mic.<span data-min-version="1.4.0" hidden> Or leave it on Auto and it learns your
+                                voice.</span></p>
                     </article>
                     <article class="feature">
                         <span class="icon"><svg viewBox="0 0 24 24">
@@ -292,6 +304,9 @@
                         <p>Grab the installer. It’s a single file, signed and notarized by Apple.</p>
                         <a class="btn btn-dark btn-sm" data-download
                             href="https://github.com/benjscohen/sound_meter/releases/latest">Download for Mac</a>
+                        <p class="chip-line chip-note" hidden>
+                            <span class="chip-name"></span> <a class="link chip-switch" href="#"></a>
+                        </p>
                     </li>
                     <li class="step card">
                         <div class="step-art">
@@ -350,7 +365,8 @@
                         <p>No. Sound Meter only measures how loud the microphone signal is, moment to moment, on
                             your Mac. No audio is recorded, stored, or sent anywhere. The app is open source, so
                             you can <a href="https://github.com/benjscohen/sound_meter" target="_blank"
-                                rel="noopener">read exactly what it does</a>.</p>
+                                rel="noopener">read exactly what it does</a>, and the <a href="/privacy">privacy
+                                page</a> spells it out.</p>
                     </details>
                     <details>
                         <summary>Does it work with Zoom, Google Meet and Teams?</summary>
@@ -378,7 +394,15 @@
                     <details>
                         <summary>It turns red too easily (or never does). Can I adjust it?</summary>
                         <p>Yes. Hover the orb and click Options to choose from five sensitivity levels. Pick the
-                            one where your normal speaking voice stays green.</p>
+                            one where your normal speaking voice stays green.<span data-min-version="1.4.0" hidden>
+                                On Automatic, choose Relearn My Voice to have it listen again.</span></p>
+                    </details>
+                    <details data-min-version="1.4.0" hidden>
+                        <summary>Which download do I need?</summary>
+                        <p>There are two: one for Macs with Apple silicon (every Mac sold since late 2020) and
+                            one for older Macs with an Intel chip. This page picks one for you and says which.
+                            To check, choose Apple menu → About This Mac: “Chip” means Apple silicon,
+                            “Processor” means Intel.</p>
                     </details>
                     <details>
                         <summary>How do I quit or uninstall it?</summary>
@@ -411,8 +435,8 @@
             <p>&copy; <span id="year">2026</span> Benj Cohen</p>
             <nav aria-label="Footer">
                 <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://github.com/benjscohen/sound_meter/releases" target="_blank"
-                    rel="noopener">Releases</a>
+                <a href="/changelog">Changelog</a>
+                <a href="/privacy">Privacy</a>
                 <a href="https://github.com/benjscohen/sound_meter/issues" target="_blank" rel="noopener">Support</a>
             </nav>
         </div>

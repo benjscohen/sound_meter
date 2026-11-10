@@ -1,6 +1,6 @@
 const {
     app, BrowserWindow, screen, Tray, Menu, nativeImage, ipcMain,
-    systemPreferences, shell, dialog, clipboard, ShareMenu
+    systemPreferences, shell, dialog, clipboard, ShareMenu, Notification, powerMonitor
 } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -9,20 +9,39 @@ const { createHistory } = require('./src/main/history');
 const { createNative } = require('./src/main/native');
 const analytics = require('./src/main/analytics');
 const { prepareShare, destinationUrl } = require('./src/main/share');
+const { createCalibrator } = require('./src/main/calibration');
+const { createNudger, recapDue } = require('./src/main/reminders');
+const { createPresence } = require('./src/main/presence');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 const METER_SIZE = 168;
 const METER_MARGIN = 16;
 const HISTORY_RETENTION_DAYS = 90;
 const TRENDS_DAYS = 28;
-const MIC_APP_POLL_MS = 10 * 1000;
+const MIC_APP_POLL_MS = 5 * 1000;
+const HOURLY_MS = 60 * 60 * 1000;
+// How long after a call app lets go of the microphone before the orb hides.
+// (Overridable so the end-to-end test doesn't have to wait.)
+const IDLE_GRACE_MS = Number(process.env.SOUND_METER_IDLE_GRACE_MS) || 45 * 1000;
+const VOICE_FOCUS_AVAILABLE = false;
+const ORB_SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+const ORB_OPACITIES = [[1, '100%'], [0.75, '75%'], [0.5, '50%']];
 const CALENDAR_CACHE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CALENDAR_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars';
 const MIC_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone';
 const WEBSITE_URL = 'https://shhh.it.com';
 
-let settings;
+// Settings load before Chromium starts because Voice Focus is a start-up
+// choice: it runs the microphone through macOS voice processing, which the
+// audio engine only does when this feature is on at launch.
+const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'));
+if (settings.get('voiceFocus')) app.commandLine.appendSwitch('enable-features', 'EnforceSystemEchoCancellation');
+
+const calibrator = createCalibrator();
+const nudger = createNudger();
+const presence = createPresence({ graceMs: IDLE_GRACE_MS });
+const notifications = new Set(); // Kept alive until clicked or dismissed, or their click is lost
 let history;
 let native;
 let tray = null;
@@ -37,6 +56,10 @@ const runtime = {
     devices: [],            // [{ id, label }] reported by the meter window
     micStatus: 'unknown',   // 'unknown' | 'granted' | 'denied' | 'no-device'
     micApp: null,           // Call app currently using a microphone, e.g. 'Zoom'
+    micSupported: false,    // Whether macOS can tell us which apps use the microphone
+    micKnown: false,        // Whether we have had an answer yet
+    idle: false,            // "Only during calls" is on and nobody is on a call
+    voice: 'off',           // Voice Focus: 'off' | 'on' | 'fallback' (asked for, couldn't start)
     update: { status: 'idle', version: null } // idle | checking | downloading | ready
 };
 
@@ -55,6 +78,7 @@ function getState() {
         devices: runtime.devices,
         micStatus: runtime.micStatus,
         micApp: runtime.micApp,
+        idle: runtime.idle,
         update: runtime.update,
         version: app.getVersion(),
         launchAtLogin: getLaunchAtLogin(),
@@ -71,7 +95,17 @@ function broadcastState() {
 }
 
 function updateSettings(patch) {
-    if (settings.update(patch)) broadcastState();
+    // A level learned on one microphone doesn't carry over to another.
+    const before = settings.get('deviceLabel');
+    const switchedMic = patch && typeof patch.deviceLabel === 'string' && before && patch.deviceLabel !== before;
+    if (switchedMic && settings.get('sensitivityMode') === 'auto' && settings.get('calibrated')) {
+        calibrator.reset();
+        patch = { ...patch, calibrated: false, sensitivity: CONSTANTS.SENSITIVITY_PRESETS.MEDIUM };
+        setImmediate(() => sendToMeter('meter:notice', 'New microphone: learning your voice…'));
+    }
+    if (!settings.update(patch)) return;
+    broadcastState();
+    if (patch && ('onlyDuringCalls' in patch || 'paused' in patch)) pollMicApp();
 }
 
 function getLaunchAtLogin() {
@@ -95,13 +129,120 @@ function setLaunchAtLogin(openAtLogin) {
 /* --------------------------------------------------------------- insights */
 
 // Which call app is in use right now, so each minute of history can be
-// credited to it. Polled, because nothing tells us when a call starts.
+// credited to it, and so "only during calls" knows when to wake up.
+// Polled, because nothing tells us when a call starts.
+let hiddenWhileIdle = false;
+let polling = false;
 async function pollMicApp() {
-    const listening = !settings.get('paused') && runtime.micStatus === 'granted';
-    const app = listening ? await native.micApp() : null;
-    if (app === runtime.micApp) return;
-    runtime.micApp = app;
-    refreshTray();
+    if (polling) return;
+    polling = true;
+    try {
+        const onlyDuringCalls = settings.get('onlyDuringCalls');
+        const listening = !settings.get('paused') && runtime.micStatus === 'granted';
+        // Ask when the answer matters, and once at the start so we know
+        // whether this Mac can tell us at all.
+        const reading = onlyDuringCalls || listening || !runtime.micKnown
+            ? await native.micState()
+            : { supported: runtime.micSupported, app: null };
+        const { supported, known, app: current, idle } = presence.update({ reading, onlyDuringCalls });
+        if (current === runtime.micApp && idle === runtime.idle
+            && supported === runtime.micSupported && known === runtime.micKnown) return;
+
+        runtime.micApp = current;
+        runtime.micSupported = supported;
+        runtime.micKnown = known;
+        runtime.idle = idle;
+
+        // While idle the orb is out of the way and the microphone is released.
+        if (meterWindow && !meterWindow.isDestroyed()) {
+            if (idle && meterWindow.isVisible()) {
+                hiddenWhileIdle = true;
+                meterWindow.hide();
+            } else if (!idle && hiddenWhileIdle) {
+                hiddenWhileIdle = false;
+                meterWindow.showInactive();
+            }
+        }
+        broadcastState();
+    } finally {
+        polling = false;
+    }
+}
+
+function notify(title, body, onClick) {
+    if (!Notification.isSupported()) return;
+    const notification = new Notification({ title, body, silent: true });
+    // Hold on to it: a notification that has been garbage-collected can't
+    // tell us it was clicked an hour later.
+    notifications.add(notification);
+    notification.on('click', () => {
+        notifications.delete(notification);
+        if (onClick) onClick();
+    });
+    notification.on('close', () => notifications.delete(notification));
+    notification.show();
+}
+
+// Automatic sensitivity: listen to the first minute or so of talking, set
+// the limit once, and stop.
+function learnVoice(sample) {
+    if (settings.get('sensitivityMode') !== 'auto' || settings.get('calibrated')) return;
+    const learned = calibrator.add(sample && sample.raw);
+    if (!learned) return;
+    updateSettings({ sensitivity: learned, calibrated: true });
+    sendToMeter('meter:notice', 'Tuned to your voice');
+}
+
+function recalibrate() {
+    calibrator.reset();
+    updateSettings({ sensitivityMode: 'auto', calibrated: false, sensitivity: CONSTANTS.SENSITIVITY_PRESETS.MEDIUM });
+    sendToMeter('meter:notice', 'Learning your voice…');
+}
+
+// Once a week, if you asked for it: a quiet note that last week is ready to
+// look at. It never interrupts a call, and the first week only notes where
+// we are. It carries no numbers, so it needs nothing but the history.
+function checkWeeklyRecap() {
+    if (!settings.get('weeklyRecap') || !settings.get('onboarded')) return;
+    if (runtime.micApp) return; // On a call: try again at the next check
+    const now = Date.now();
+    // The seven days before today, so Monday's recap covers Monday to Sunday.
+    const week = analytics.weekSummary(history.listDays(15), now - DAY_MS);
+    const lastWeek = settings.get('lastRecapWeek');
+    const due = recapDue({ now, lastWeek, monitoredSeconds: week.current ? week.current.seconds : 0 });
+    if (due.week !== lastWeek) settings.update({ lastRecapWeek: due.week });
+    if (!due.show) return;
+    notify('Your week in volume is ready', 'See how last week sounded, and share it if you like.',
+        () => openInsights({ share: true }));
+}
+
+function hourly() {
+    history.prune(HISTORY_RETENTION_DAYS);
+    checkWeeklyRecap();
+}
+
+// Voice Focus only takes effect at launch, so switching it restarts the app.
+async function setVoiceFocus(enable) {
+    const { response } = await dialog.showMessageBox({
+        type: 'question',
+        buttons: [enable ? 'Turn On and Restart' : 'Turn Off and Restart', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        message: enable ? 'Turn on Voice Focus?' : 'Turn off Voice Focus?',
+        detail: enable
+            ? 'Voice Focus uses macOS voice processing so sound from your speakers counts less toward your level. '
+                + 'It is new: if readings look wrong, turn it off again. Sound Meter will restart.'
+            : 'Sound Meter will restart and measure the microphone as it comes.'
+    });
+    if (response !== 0) {
+        refreshTray();
+        return;
+    }
+    // A different signal path reads differently, so learn the voice again.
+    const relearn = settings.get('sensitivityMode') === 'auto' ? { calibrated: false } : {};
+    settings.update({ voiceFocus: enable, ...relearn });
+    app.relaunch();
+    app.quit();
 }
 
 async function calendarState() {
@@ -193,6 +334,7 @@ function resolveMeterPosition() {
 
 function createMeterWindow() {
     if (meterWindow) {
+        hiddenWhileIdle = false;
         meterWindow.show();
         return meterWindow;
     }
@@ -223,7 +365,8 @@ function createMeterWindow() {
 
     meterWindow.loadFile('src/index.html');
     meterWindow.once('ready-to-show', () => {
-        meterWindow.showInactive();
+        if (runtime.idle) hiddenWhileIdle = true;
+        else meterWindow.showInactive();
         refreshTray();
     });
     meterWindow.on('show', refreshTray);
@@ -237,6 +380,7 @@ function createMeterWindow() {
 }
 
 function toggleMeter() {
+    hiddenWhileIdle = false;
     if (!meterWindow) createMeterWindow();
     else if (meterWindow.isVisible()) meterWindow.hide();
     else meterWindow.showInactive();
@@ -279,10 +423,11 @@ function syncDock() {
     else app.dock.hide();
 }
 
-function openInsights() {
+function openInsights({ share = false } = {}) {
     if (insightsWindow) {
         insightsWindow.show();
         insightsWindow.focus();
+        if (share) insightsWindow.webContents.send('insights:share');
         return;
     }
     insightsWindow = createPanelWindow('src/insights.html', {
@@ -292,6 +437,9 @@ function openInsights() {
         minHeight: 560,
         title: 'Sound Meter Insights'
     });
+    if (share) {
+        insightsWindow.webContents.once('did-finish-load', () => insightsWindow.webContents.send('insights:share'));
+    }
     insightsWindow.on('closed', () => {
         insightsWindow = null;
     });
@@ -304,7 +452,7 @@ function openOnboarding() {
     }
     onboardingWindow = createPanelWindow('src/onboarding.html', {
         width: 520,
-        height: 640,
+        height: 724,
         resizable: false,
         maximizable: false,
         title: 'Welcome to Sound Meter'
@@ -326,16 +474,61 @@ function statusLabel() {
     if (runtime.micStatus === 'denied') return 'Microphone access needed';
     if (runtime.micStatus === 'no-device') return 'No microphone found';
     if (settings.get('paused')) return 'Paused';
+    if (runtime.idle) return 'Waiting for a call';
     const label = settings.get('deviceLabel');
     const where = runtime.micApp ? ` · on ${runtime.micApp}` : '';
-    return `${label ? `Listening · ${label}` : 'Listening'}${where}`;
+    const learning = settings.get('sensitivityMode') === 'auto' && !settings.get('calibrated') ? ' · learning your voice' : '';
+    return `${label ? `Listening · ${label}` : 'Listening'}${where}${learning}`;
+}
+
+const toggle = (label, key, extra = {}) => ({
+    label,
+    type: 'checkbox',
+    checked: !!settings.get(key),
+    click: (item) => updateSettings({ [key]: item.checked }),
+    ...extra
+});
+
+const choice = (label, key, options) => ({
+    label,
+    submenu: options.map(([value, name]) => ({
+        label: name,
+        type: 'radio',
+        checked: settings.get(key) === value,
+        click: () => updateSettings({ [key]: value })
+    }))
+});
+
+function sensitivityMenu() {
+    const auto = settings.get('sensitivityMode') === 'auto';
+    const sensitivity = settings.get('sensitivity');
+    return {
+        label: 'Sensitivity',
+        submenu: [
+            {
+                label: !auto ? 'Automatic' : settings.get('calibrated') ? 'Automatic — tuned to your voice' : 'Automatic — learning your voice…',
+                type: 'radio',
+                checked: auto,
+                click: () => { if (!auto) recalibrate(); }
+            },
+            ...CONSTANTS.SENSITIVITY_OPTIONS.map((option) => ({
+                label: `${option.label} — ${option.hint}`,
+                type: 'radio',
+                checked: !auto && option.value === sensitivity,
+                click: () => updateSettings({ sensitivityMode: 'manual', sensitivity: option.value })
+            })),
+            { type: 'separator' },
+            { label: 'Relearn My Voice', enabled: auto, click: recalibrate }
+        ]
+    };
 }
 
 function buildMenuTemplate({ forTray = false } = {}) {
     const paused = settings.get('paused');
-    const sensitivity = settings.get('sensitivity');
     const deviceId = settings.get('deviceId');
     const meterVisible = !!meterWindow && meterWindow.isVisible();
+    // Until we've heard back, assume this Mac can detect calls.
+    const callsSupported = runtime.micSupported || !runtime.micKnown;
     const template = [{ label: statusLabel(), enabled: false }];
 
     if (runtime.micStatus === 'denied') {
@@ -344,6 +537,9 @@ function buildMenuTemplate({ forTray = false } = {}) {
             click: () => shell.openExternal(MIC_SETTINGS_URL)
         });
     }
+    if (runtime.voice === 'fallback') {
+        template.push({ label: 'Voice Focus couldn’t start with this microphone', enabled: false });
+    }
 
     template.push(
         { type: 'separator' },
@@ -351,6 +547,11 @@ function buildMenuTemplate({ forTray = false } = {}) {
             label: paused ? 'Resume Listening' : 'Pause Listening',
             click: () => updateSettings({ paused: !paused })
         },
+        toggle(callsSupported ? 'Listen Only During Calls' : 'Listen Only During Calls (needs macOS 14.2)', 'onlyDuringCalls', {
+            visible: native.available,
+            enabled: callsSupported,
+            toolTip: 'Hide the orb and release the microphone unless another app is using it'
+        }),
         {
             label: 'Microphone',
             enabled: runtime.devices.length > 0,
@@ -361,17 +562,18 @@ function buildMenuTemplate({ forTray = false } = {}) {
                 click: () => updateSettings({ deviceId: device.id, deviceLabel: device.label })
             }))
         },
+        sensitivityMenu(),
         {
-            label: 'Sensitivity',
-            submenu: CONSTANTS.SENSITIVITY_OPTIONS.map((option) => ({
-                label: `${option.label} — ${option.hint}`,
-                type: 'radio',
-                checked: option.value === sensitivity,
-                click: () => updateSettings({ sensitivity: option.value })
-            }))
+            // Hidden until it has been proven on real audio; the plumbing is in place.
+            label: 'Voice Focus (Beta)',
+            type: 'checkbox',
+            visible: VOICE_FOCUS_AVAILABLE || settings.get('voiceFocus'),
+            checked: settings.get('voiceFocus'),
+            toolTip: 'Count sound from your speakers less. Restarts Sound Meter.',
+            click: (item) => setVoiceFocus(item.checked)
         },
         { type: 'separator' },
-        { label: 'Insights…', click: openInsights },
+        { label: 'Insights…', click: () => openInsights() },
         {
             label: 'Show Meetings from Calendar',
             type: 'checkbox',
@@ -380,18 +582,35 @@ function buildMenuTemplate({ forTray = false } = {}) {
             click: (item) => (item.checked ? connectCalendar() : disconnectCalendar())
         },
         {
-            label: meterVisible ? 'Hide Meter' : 'Show Meter',
-            click: toggleMeter
+            label: 'Notifications',
+            submenu: [
+                toggle('Nudge Me When I’m Loud for a While', 'nudge'),
+                toggle('Tell Me When My Week Is Ready', 'weeklyRecap')
+            ]
+        },
+        { type: 'separator' },
+        {
+            label: 'Orb',
+            submenu: [
+                choice('Size', 'orbSize', ORB_SIZES),
+                choice('Opacity', 'orbOpacity', ORB_OPACITIES),
+                toggle('Show Level Symbols', 'symbols', { toolTip: 'Arrows in the orb as it gets louder, for when colour alone is hard to read' }),
+                { type: 'separator' },
+                {
+                    label: 'Reset Position',
+                    click: () => {
+                        updateSettings({ position: null });
+                        const win = createMeterWindow();
+                        const { x, y } = defaultMeterPosition();
+                        win.setPosition(x, y);
+                    }
+                }
+            ]
         },
         {
-            label: 'Reset Meter Position',
-            visible: forTray,
-            click: () => {
-                updateSettings({ position: null });
-                const win = createMeterWindow();
-                const { x, y } = defaultMeterPosition();
-                win.setPosition(x, y);
-            }
+            label: meterVisible ? 'Hide Meter' : 'Show Meter',
+            visible: forTray || meterVisible,
+            click: toggleMeter
         },
         { type: 'separator' },
         {
@@ -537,9 +756,19 @@ function registerIpc() {
         broadcastState();
     });
 
+    ipcMain.on('meter:voice', (_event, voice) => {
+        if (!['off', 'on', 'fallback'].includes(voice) || voice === runtime.voice) return;
+        runtime.voice = voice;
+        refreshTray();
+    });
+
     ipcMain.on('meter:sample', (_event, sample) => {
-        if (settings.get('paused')) return;
+        if (settings.get('paused') || runtime.idle) return;
         history.record(sample, Date.now(), { app: runtime.micApp });
+        learnVoice(sample);
+        if (settings.get('nudge') && sample && nudger.sample(sample.avg)) {
+            notify('You’re getting loud', 'You’ve been above your limit for a little while.');
+        }
         if (insightsWindow && !insightsWindow.isDestroyed()) {
             insightsWindow.webContents.send('history:sample', sample);
         }
@@ -580,15 +809,16 @@ function registerIpc() {
     ipcMain.on('mic:open-settings', () => shell.openExternal(MIC_SETTINGS_URL));
 
     ipcMain.handle('onboarding:finish', (_event, options = {}) => {
-        const patch = { onboarded: true };
-        if (Number.isFinite(options.sensitivity)) patch.sensitivity = options.sensitivity;
+        const patch = { onboarded: true, sensitivityMode: options.sensitivityMode === 'manual' ? 'manual' : 'auto', calibrated: false };
+        if (patch.sensitivityMode === 'manual' && Number.isFinite(options.sensitivity)) patch.sensitivity = options.sensitivity;
+        if (typeof options.weeklyRecap === 'boolean') patch.weeklyRecap = options.weeklyRecap;
         updateSettings(patch);
         if (typeof options.launchAtLogin === 'boolean') setLaunchAtLogin(options.launchAtLogin);
         createMeterWindow();
         if (onboardingWindow) onboardingWindow.close();
     });
 
-    ipcMain.on('insights:open', openInsights);
+    ipcMain.on('insights:open', () => openInsights());
     ipcMain.handle('history:days', (_event, limit) => history.listDays(Number.isFinite(limit) ? limit : 14));
     ipcMain.handle('insights:day', (_event, date) =>
         /^\d{4}-\d{2}-\d{2}$/.test(String(date)) ? dayInsights(date) : null);
@@ -682,9 +912,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     app.whenReady().then(() => {
-        const userData = app.getPath('userData');
-        settings = createSettings(path.join(userData, 'settings.json'));
-        history = createHistory(path.join(userData, 'history'));
+        history = createHistory(path.join(app.getPath('userData'), 'history'));
         history.prune(HISTORY_RETENTION_DAYS);
         native = createNative({
             helperPath: app.isPackaged
@@ -694,6 +922,10 @@ if (!app.requestSingleInstanceLock()) {
             ownBundleIds: ['com.benjscohen.soundmeter', 'com.github.electron']
         });
         setInterval(pollMicApp, MIC_APP_POLL_MS);
+        pollMicApp();
+        setTimeout(checkWeeklyRecap, 60 * 1000);
+        setInterval(hourly, HOURLY_MS);
+        powerMonitor.on('resume', checkWeeklyRecap); // e.g. opening the laptop on Monday morning
 
         registerIpc();
         createAppMenu();

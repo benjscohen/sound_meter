@@ -14,6 +14,9 @@ body {
 }
 
 #orb {
+    width: var(--orb, 60px);
+    height: var(--orb, 60px);
+    opacity: var(--orb-opacity, 1);
     appearance: none;
     position: relative;
     display: grid;
@@ -75,8 +78,34 @@ body {
     stroke-linejoin: round;
 }
 
+/* Level symbols: one arrow when getting loud, two when too loud, so the
+   level reads without relying on colour. They grow with the orb. */
+.glyph-level {
+    width: 44%;
+    height: 44%;
+    fill: none;
+    stroke: rgb(0 0 0 / 0.6);
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+#stage.symbols[data-state="listening"][data-zone="elevated"] .glyph-level,
+#stage.symbols[data-state="listening"][data-zone="loud"] .glyph-level {
+    display: block;
+}
+
+#stage[data-zone="elevated"] .level-2 {
+    display: none;
+}
+
+#stage[data-zone="elevated"] .level-1 {
+    transform: translateY(2.7px);
+}
+
 /* Not listening: a calm grey orb with an explanatory glyph. */
 #stage[data-state="paused"] #orb,
+#stage[data-state="idle"] #orb,
 #stage[data-state="denied"] #orb,
 #stage[data-state="no-device"] #orb {
     --c: 134 146 162;
@@ -84,6 +113,7 @@ body {
 }
 
 #stage[data-state="paused"] .glyph-paused,
+#stage[data-state="idle"] .glyph-paused,
 #stage[data-state="denied"] .glyph-denied,
 #stage[data-state="no-device"] .glyph-denied {
     display: block;

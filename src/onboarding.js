@@ -23,6 +23,7 @@
     let step = STEP.WELCOME;
     let access = 'not-determined';
     let sensitivity = SENSITIVITY_PRESETS.MEDIUM;
+    let auto = true;
     let analyser = null;
     let stream = null;
     let data = null;
@@ -43,7 +44,7 @@
     function frame(now) {
         requestAnimationFrame(frame);
         let raw;
-        let max = sensitivity;
+        let max = auto ? SENSITIVITY_PRESETS.MEDIUM : sensitivity;
         if (analyser && step === STEP.CALIBRATE) {
             analyser.getByteFrequencyData(data);
             raw = V.averageLevel(data);
@@ -86,20 +87,27 @@
 
     /* ------------------------------------------------------------ steps */
 
+    // "Auto" learns your voice once the meter is running; the presets are
+    // there for anyone who'd rather choose.
     function renderSensitivity() {
-        sensitivityGroup.replaceChildren(...SENSITIVITY_OPTIONS.map((option) => {
+        const choices = [{ label: 'Auto', value: 'auto' }, ...SENSITIVITY_OPTIONS];
+        sensitivityGroup.replaceChildren(...choices.map((option) => {
+            const selected = option.value === 'auto' ? auto : !auto && option.value === sensitivity;
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = option.label;
-            button.setAttribute('aria-pressed', String(option.value === sensitivity));
+            button.setAttribute('aria-pressed', String(selected));
             button.addEventListener('click', () => {
-                sensitivity = option.value;
+                auto = option.value === 'auto';
+                if (!auto) sensitivity = option.value;
                 renderSensitivity();
             });
             return button;
         }));
         const current = SENSITIVITY_OPTIONS.find((o) => o.value === sensitivity);
-        sensitivityHint.textContent = current ? `Best for: ${current.hint.toLowerCase()}` : '';
+        sensitivityHint.textContent = auto
+            ? 'Sound Meter learns your normal voice as you talk. It takes less than a minute of speech.'
+            : current ? `Best for: ${current.hint.toLowerCase()}` : '';
     }
 
     function showCallout(text, ok = false) {
@@ -141,8 +149,8 @@
         } else if (step === STEP.CALIBRATE) {
             primary.textContent = 'Looks good';
             calibrateCopy.textContent = analyser
-                ? 'Say a sentence the way you’d normally talk. Pick the setting where the orb stays green — and only turns red when you raise your voice.'
-                : 'Pick a starting point. You can fine-tune it any time by clicking the orb once microphone access is on.';
+                ? 'Say a sentence the way you’d normally talk. Leave it on Auto and Sound Meter tunes itself to your voice, or pick the setting where the orb stays green.'
+                : 'Leave it on Auto and Sound Meter tunes itself to your voice once microphone access is on, or pick a starting point.';
             renderSensitivity();
         } else {
             primary.textContent = 'Start Sound Meter';
@@ -177,7 +185,12 @@
                 await go(STEP.DONE);
             } else {
                 primary.disabled = true;
-                await api.finishOnboarding({ sensitivity, launchAtLogin: launchAtLogin.checked });
+                await api.finishOnboarding({
+                    sensitivity,
+                    sensitivityMode: auto ? 'auto' : 'manual',
+                    launchAtLogin: launchAtLogin.checked,
+                    weeklyRecap: document.getElementById('weekly-recap').checked
+                });
             }
         } finally {
             busy = false;
@@ -200,6 +213,7 @@
 
     api.getState().then((state) => {
         if (Number.isFinite(state.settings.sensitivity)) sensitivity = state.settings.sensitivity;
+        auto = state.settings.sensitivityMode !== 'manual';
         render();
         requestAnimationFrame(frame);
     });

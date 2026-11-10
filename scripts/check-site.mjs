@@ -1,9 +1,10 @@
-// Checks the two halves of sharing against each other: links built by the
-// app (src/main/share.js) must be understood by the website
-// (landing_page/api), with identical wording, and the site must be able to
-// render the page and the preview image for them.
+// Checks the website's logic without a browser:
+//  - sharing: links built by the app (src/main/share.js) must be understood
+//    by the site (landing_page/api), with identical wording, and the site
+//    must render the page and the preview image for them
+//  - downloads: the right installer is picked for each kind of Mac
 //
-//   node scripts/check-share.mjs [output.png]
+//   node scripts/check-site.mjs [output.png]
 //
 // Needs landing_page dependencies installed (npm ci in landing_page).
 import assert from 'node:assert/strict';
@@ -71,4 +72,29 @@ assert.equal(png.readUInt32BE(16), 1200);
 assert.equal(png.readUInt32BE(20), 630);
 if (process.argv[2]) writeFileSync(process.argv[2], png);
 
-console.log(`Share check passed: ${samples.length} links, page and ${png.length}-byte preview image.`);
+// Downloads: one installer per chip, picked from what the browser reveals.
+const { installers, chipFromHints, compareVersions } = await import('../landing_page/release.js');
+const asset = (name) => ({ name, browser_download_url: `https://example.test/${name}` });
+const split = installers([asset('latest-mac.yml'), asset('Sound-Meter-1.4.0-arm64.dmg'), asset('Sound-Meter-1.4.0-x64.dmg'),
+    asset('Sound-Meter-1.4.0-arm64.zip'), asset('Sound-Meter-1.4.0-x64.zip')]);
+assert.equal(split.arm64, 'https://example.test/Sound-Meter-1.4.0-arm64.dmg');
+assert.equal(split.x64, 'https://example.test/Sound-Meter-1.4.0-x64.dmg');
+// Older releases had a single universal installer.
+assert.deepEqual(installers([asset('Sound-Meter-1.3.0.dmg'), asset('Sound-Meter-1.3.0.zip')]),
+    { arm64: null, x64: null, any: 'https://example.test/Sound-Meter-1.3.0.dmg' });
+assert.deepEqual(installers(undefined), { arm64: null, x64: null, any: null });
+
+assert.equal(chipFromHints({ architecture: 'arm' }), 'arm64');                       // Chrome on Apple silicon
+assert.equal(chipFromHints({ architecture: 'x86', renderer: 'Apple M2' }), 'x64');    // Chrome's own answer wins
+assert.equal(chipFromHints({ renderer: 'ANGLE (Intel Inc., Intel(R) Iris(TM) Plus Graphics 655)' }), 'x64');
+assert.equal(chipFromHints({ renderer: 'AMD Radeon Pro 5500M OpenGL Engine' }), 'x64');
+assert.equal(chipFromHints({ renderer: 'Apple M1 Pro' }), 'arm64');
+assert.equal(chipFromHints({ renderer: 'Apple GPU' }), 'arm64');                      // Safari says only this
+assert.equal(chipFromHints({}), 'arm64');
+assert.equal(chipFromHints(), 'arm64');
+
+assert.ok(compareVersions('1.4.0', '1.3.9') > 0);
+assert.ok(compareVersions('1.10.0', '1.9.0') > 0);
+assert.equal(compareVersions('1.4', '1.4.0'), 0);
+
+console.log(`Site check passed: downloads, ${samples.length} links, page and ${png.length}-byte preview image.`);

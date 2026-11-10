@@ -84,9 +84,28 @@ function createNative({ helperPath, fixturesPath = null, ownBundleIds = [], run 
 
     const status = (value) => (CALENDAR_STATES.includes(value) ? value : 'unavailable');
 
-    async function micApp() {
-        const result = fixtures ? { apps: fixtures.micApps } : await helper(['mic-apps']);
-        return resolveMicApp(result && result.apps, ownBundleIds);
+    /**
+     * Who is using a microphone: { supported, app }, or null if it couldn't
+     * be read this time. `supported` is false where macOS can't say which
+     * apps are using a microphone (before 14.2).
+     */
+    async function micState() {
+        let result = null;
+        if (fixtures) {
+            try {
+                // Re-read each time so a test can start and end a "call".
+                const live = JSON.parse(fs.readFileSync(fixturesPath, 'utf8'));
+                result = { supported: live.micSupported !== false, apps: live.micApps };
+            } catch {
+                result = null;
+            }
+        } else {
+            result = await helper(['mic-apps'], 3000);
+        }
+        // No answer is not the same as "this Mac can't tell us": callers keep
+        // whatever they knew before.
+        if (!result || typeof result.supported !== 'boolean') return null;
+        return { supported: result.supported, app: result.supported ? resolveMicApp(result.apps, ownBundleIds) : null };
     }
 
     async function calendarStatus() {
@@ -115,7 +134,7 @@ function createNative({ helperPath, fixturesPath = null, ownBundleIds = [], run 
         return cleanEvents(result && result.events);
     }
 
-    return { available, micApp, calendarStatus, calendarRequest, calendarEvents };
+    return { available, micState, calendarStatus, calendarRequest, calendarEvents };
 }
 
 module.exports = { createNative, resolveMicApp, cleanEvents, KNOWN_APPS };

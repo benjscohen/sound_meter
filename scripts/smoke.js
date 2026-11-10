@@ -6,7 +6,7 @@
 //   SMOKE_THEME=dark npm run smoke
 //
 // Loaded with `electron -r ./scripts/smoke.js .` so it runs before main.js.
-const { app, clipboard, dialog, ipcMain, nativeTheme, shell, BrowserWindow, Menu, ShareMenu } = require('electron');
+const { app, clipboard, dialog, ipcMain, nativeTheme, powerMonitor, shell, BrowserWindow, Menu, Notification, ShareMenu } = require('electron');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const os = require('os');
@@ -22,6 +22,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 app.setPath('userData', profile);
 app.commandLine.appendSwitch('use-fake-device-for-media-stream');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+process.env.SOUND_METER_IDLE_GRACE_MS = '1500'; // Don't wait 45s for the orb to hide after a call
 nativeTheme.themeSource = theme;
 fs.mkdirSync(out, { recursive: true });
 
@@ -30,7 +31,8 @@ dialog.showMessageBox = async () => ({ response: 0 });
 
 // Things that would otherwise reach outside the test: record them instead of
 // popping up menus or overwriting the real clipboard.
-const outside = { menus: 0, shared: 0, image: null, text: null, opened: [] };
+const outside = { menus: 0, shared: 0, image: null, text: null, opened: [], notifications: [] };
+Notification.prototype.show = function show() { outside.notifications.push(this); };
 Menu.prototype.popup = function popup() { outside.menus += 1; };
 ShareMenu.prototype.popup = function popup() { outside.shared += 1; };
 clipboard.writeImage = (image) => { outside.image = image.getSize(); };
@@ -85,12 +87,21 @@ function writeFixtures() {
     const events = seededDays.flatMap((day) => SCHEDULE
         .filter(([title]) => title)
         .map(([title, from, to, , , people]) => ({ title, start: clock(day, from), end: clock(day, to), people })));
-    const file = path.join(profile, 'fixtures.json');
-    fs.writeFileSync(file, JSON.stringify({
-        micApps: [{ bundleId: 'us.zoom.xos', name: 'zoom.us' }, { bundleId: 'com.github.Electron.helper', name: 'Electron' }],
-        calendar: { status: 'not-determined', statusAfterRequest: 'granted', events }
-    }));
-    process.env.SOUND_METER_FIXTURES = file;
+    fixtures.calendar = { status: 'not-determined', statusAfterRequest: 'granted', events };
+    setCall(true);
+    process.env.SOUND_METER_FIXTURES = fixturesFile;
+}
+
+// Starts or ends the pretend Zoom call.
+const fixturesFile = path.join(profile, 'fixtures.json');
+const fixtures = {};
+function setCall(onCall) {
+    fixtures.micApps = onCall
+        ? [{ bundleId: 'us.zoom.xos', name: 'zoom.us' }, { bundleId: 'com.github.Electron.helper', name: 'Electron' }]
+        : [{ bundleId: 'com.github.Electron.helper', name: 'Electron' }];
+    // Written atomically: the app re-reads this file while we change it.
+    fs.writeFileSync(`${fixturesFile}.tmp`, JSON.stringify(fixtures));
+    fs.renameSync(`${fixturesFile}.tmp`, fixturesFile);
 }
 
 async function shoot(win, name) {
@@ -161,7 +172,11 @@ async function run() {
     // Don't trigger the real macOS permission prompt in a smoke test.
     await js(welcome, `document.getElementById('secondary').click()`);
     await until(() => js(welcome, `document.getElementById('wizard').dataset.step === '2'`), 'calibrate step');
-    await js(welcome, `document.querySelectorAll('#sensitivity button')[2].click()`);
+    const levels = await js(welcome, `[...document.querySelectorAll('#sensitivity button')].map((b) => b.textContent + ':' + b.getAttribute('aria-pressed'))`);
+    if (levels.length !== 6 || levels[0] !== 'Auto:true') throw new Error(`Auto should be the default sensitivity: ${levels}`);
+    await wait(300);
+    await shoot(welcome, '3a-calibrate-auto');
+    await js(welcome, `document.querySelectorAll('#sensitivity button')[3].click()`); // Low
     await wait(500);
     await shoot(welcome, '3-calibrate');
 
@@ -170,6 +185,13 @@ async function run() {
     await wait(500);
     await shoot(welcome, '4-done');
 
+    if (await js(welcome, `document.getElementById('weekly-recap').checked`)) throw new Error('Weekly recap must be off unless chosen');
+    const fits = await js(welcome, `(() => {
+        const step = document.querySelector('.step.active').getBoundingClientRect();
+        const last = document.querySelector('.step.active').lastElementChild.getBoundingClientRect();
+        return last.bottom <= step.bottom + 1;
+    })()`);
+    if (!fits) throw new Error('The last onboarding step overflows its window');
     await js(welcome, `document.getElementById('launch-at-login').checked = false; document.getElementById('primary').click()`);
 
     /* ---- Meter ---------------------------------------------------------- */
@@ -177,7 +199,10 @@ async function run() {
     await until(() => !find('onboarding.html'), 'welcome window to close');
     const state = await until(
         () => js(meter, `window.soundMeter.getState().then((s) => s.settings.onboarded && s)`), 'onboarded state');
-    if (state.settings.sensitivity !== 210) throw new Error(`Sensitivity not saved (got ${state.settings.sensitivity})`);
+    if (state.settings.sensitivity !== 210 || state.settings.sensitivityMode !== 'manual') {
+        throw new Error(`Chosen sensitivity not saved: ${state.settings.sensitivityMode} ${state.settings.sensitivity}`);
+    }
+    if (state.settings.weeklyRecap || state.settings.nudge) throw new Error('Notifications must start switched off');
 
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'meter to start listening');
     await wait(1200);
@@ -199,6 +224,67 @@ async function run() {
     await until(() => outside.menus === 1, 'Options button to open the menu');
     await js(meter, `document.dispatchEvent(new MouseEvent('mouseleave'))`);
     await until(() => js(meter, `!document.getElementById('stage').classList.contains('hover')`), 'hover to end');
+
+    const setting = (patch) => js(meter, `window.soundMeter.updateSettings(${JSON.stringify(patch)})`);
+    const settingsNow = () => js(meter, `window.soundMeter.getState().then((s) => s.settings)`);
+    const sample = (avg, raw) => ipcMain.emit('meter:sample', {}, { avg, peak: avg, raw });
+    if (await js(meter, `document.getElementById('stage').dataset.voice`) !== 'off') throw new Error('Voice Focus should be off by default');
+
+    // Automatic sensitivity: hears a quiet room, then a minute of talking, and tunes itself once.
+    await setting({ sensitivityMode: 'auto', calibrated: false });
+    for (let i = 0; i < 20; i++) sample(0.05, 7 + (i % 3));
+    for (let i = 0; i < 50; i++) sample(0.4, 93 + (i % 5));
+    const tuned = await until(async () => { const s = await settingsNow(); return s.calibrated && s; }, 'automatic sensitivity');
+    if (tuned.sensitivity < 220 || tuned.sensitivity > 270) throw new Error(`Learned sensitivity looks wrong: ${tuned.sensitivity}`);
+    await until(() => js(meter, `document.getElementById('pill').textContent === 'Tuned to your voice'`), 'tuned notice');
+    for (let i = 0; i < 60; i++) sample(0.9, 200);
+    if ((await settingsNow()).sensitivity !== tuned.sensitivity) throw new Error('Sensitivity must not drift after learning');
+    // A different microphone reads differently, so it learns again.
+    await setting({ deviceLabel: 'Studio Microphone' });
+    const relearning = await settingsNow();
+    if (relearning.calibrated || relearning.sensitivity !== 140) throw new Error('Switching microphone should restart learning');
+    await until(() => js(meter, `document.getElementById('pill').textContent === 'New microphone: learning your voice…'`), 'relearning notice');
+    await setting({ sensitivityMode: 'manual', sensitivity: 210 });
+
+    // The nudge is opt-in: nothing when off, one notification when on.
+    for (let i = 0; i < 12; i++) sample(0.95, 200);
+    if (outside.notifications.length) throw new Error('Nudged without being asked to');
+    await setting({ nudge: true });
+    for (let i = 0; i < 30; i++) sample(0.95, 200);
+    const nudges = outside.notifications.filter((n) => n.title === 'You’re getting loud');
+    if (nudges.length !== 1) throw new Error(`Expected exactly one nudge, got ${nudges.length}`);
+    await setting({ nudge: false });
+
+    // Orb preferences: size, opacity and level symbols.
+    await setting({ orbSize: 'large', orbOpacity: 0.5, symbols: true });
+    await until(() => js(meter, `(() => {
+        const orb = getComputedStyle(document.getElementById('orb'));
+        return orb.width === '76px' && orb.opacity === '0.5' && document.getElementById('stage').classList.contains('symbols');
+    })()`), 'orb preferences to apply');
+    await until(() => js(meter, `(() => {
+        const stage = document.getElementById('stage');
+        return stage.dataset.zone !== 'good' && getComputedStyle(document.querySelector('.glyph-level')).display === 'block';
+    })()`), 'level symbol to show when loud', 12000);
+    await shoot(meter, '6c-meter-large-symbols');
+    await setting({ orbSize: 'small', orbOpacity: 1, symbols: false });
+    await until(() => js(meter, `getComputedStyle(document.getElementById('orb')).width === '44px'`), 'small orb');
+    await setting({ orbSize: 'medium' });
+
+    // Only during calls: when the call ends the orb hides and the microphone
+    // is released; when one starts it comes back.
+    await setting({ onlyDuringCalls: true });
+    await wait(500);
+    if (!meter.isVisible()) throw new Error('Orb should stay visible while on a call');
+    setCall(false);
+    await until(() => !meter.isVisible(), 'orb to hide when the call ends', 12000);
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'idle'`), 'microphone to be released');
+    if (await js(meter, `document.getElementById('pill').textContent`) !== 'Waiting for a call') throw new Error('Idle orb should say what it is waiting for');
+    const idleState = await js(meter, `window.soundMeter.getState()`);
+    if (!idleState.idle) throw new Error('State should report idle');
+    setCall(true);
+    await until(() => meter.isVisible(), 'orb to return when a call starts', 12000);
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening to resume');
+    await setting({ onlyDuringCalls: false });
 
     // Pause from "the menu" (same code path: a settings update).
     await js(meter, `window.soundMeter.updateSettings({ paused: true })`);
@@ -227,7 +313,7 @@ async function run() {
     const scrollTo = (id) => js(insights, `document.getElementById(${JSON.stringify(id)}).scrollIntoView({ block: 'start' })`);
 
     ipcMain.emit('insights:open', {});
-    const insights = await until(() => find('insights.html'), 'insights window');
+    let insights = await until(() => find('insights.html'), 'insights window');
     await until(() => js(insights, `document.querySelectorAll('.day:not(:disabled)').length > 5`), 'seeded days');
     await until(() => js(insights, `document.querySelectorAll('#chart-svg path.avg').length > 0`), 'chart');
     if ((await text('#day-metrics .metric')).length !== 4) throw new Error('Day metrics missing');
@@ -329,6 +415,44 @@ async function run() {
     await until(() => outside.shared === 1, 'share sheet');
     await js(insights, `document.getElementById('share-close').click()`);
     if (await js(insights, `document.getElementById('share-dialog').open`)) throw new Error('Share dialog did not close');
+
+    // Weekly recap: only if asked for, never during a call, once a week,
+    // and clicking it opens the share card even if Insights was closed.
+    const recaps = () => outside.notifications.filter((n) => n.title === 'Your week in volume is ready');
+    const micApp = () => js(meter, `window.soundMeter.getState().then((s) => s.micApp)`);
+    await setting({ lastRecapWeek: '2020-01-06' });
+    powerMonitor.emit('resume');
+    await wait(400);
+    if (recaps().length) throw new Error('Recap shown without being switched on');
+    if (new Date().getHours() >= 9) {
+        await setting({ weeklyRecap: true, lastRecapWeek: '2020-01-06' });
+        powerMonitor.emit('resume');
+        await wait(400);
+        if (recaps().length) throw new Error('Recap must wait while on a call');
+        setCall(false);
+        await until(async () => !(await micApp()), 'call to end', 12000);
+        powerMonitor.emit('resume');
+        await until(() => recaps().length === 1, 'weekly recap');
+        if (recaps()[0].body !== 'See how last week sounded, and share it if you like.') throw new Error(`Odd recap: ${recaps()[0].body}`);
+
+        insights.close();
+        await until(() => !find('insights.html'), 'insights to close');
+        recaps()[0].emit('click');
+        insights = await until(() => find('insights.html'), 'recap to reopen Insights');
+        await until(() => js(insights, `document.getElementById('share-dialog').open`), 'recap to open the share card');
+        if (!(await visible('view-trends'))) throw new Error('Recap should land on Trends');
+        await js(insights, `document.getElementById('share-close').click()`);
+        powerMonitor.emit('resume');
+        await wait(600);
+        if (recaps().length !== 1) throw new Error('Recap repeated in the same week');
+        setCall(true);
+        await until(async () => (await micApp()) === 'Zoom', 'call to resume', 12000);
+    } else {
+        console.log('  - weekly recap delivery skipped before 9am (it waits until then by design)');
+    }
+    await js(insights, `document.querySelector('#tabs [data-view="trends"]').click()`);
+    await until(() => visible('view-trends'), 'trends view');
+    await until(async () => (await text('#trend-meetings .row-label')).length > 0, 'trend lists');
 
     insights.setSize(740, 600);
     await wait(500);
