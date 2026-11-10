@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A floating orb for your Mac that shows when you are getting loud.",
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
   "build": {
     "publish": {
       "provider": "github",
-      "releaseType": "release"
+      "releaseType": "draft"
     },
     "appId": "com.benjscohen.soundmeter",
     "productName": "Sound Meter",

@@ -1,6 +1,7 @@
 const { createNudger, weekKey, recapDue } = require('./reminders');
 const { createCalibrator } = require('./calibration');
 const { createPresence } = require('./presence');
+const { describeUpdateError } = require('./update-errors');
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -182,5 +183,25 @@ describe('presence (listen only during calls)', () => {
             { supported: true, known: true, app: null, idle: true });
         presence.update({ reading: on, onlyDuringCalls: true, now: 3000 });
         expect(presence.update({ reading: null, onlyDuringCalls: true, now: 4000 }).app).toBe('Zoom');
+    });
+});
+
+describe('update error messages', () => {
+    test('a half-published release is not blamed on the internet', () => {
+        const real = new Error('Cannot find latest-mac.yml in the latest release artifacts '
+            + '(https://github.com/benjscohen/sound_meter/releases/download/v1.4.0/latest-mac.yml): HttpError: 404');
+        expect(describeUpdateError(real)).toBe('A new version is being published right now. Try again in a few minutes.');
+    });
+
+    test('real connection problems say so', () => {
+        expect(describeUpdateError(new Error('net::ERR_INTERNET_DISCONNECTED'))).toMatch(/internet connection/);
+        expect(describeUpdateError(new Error('getaddrinfo ENOTFOUND github.com'))).toMatch(/internet connection/);
+    });
+
+    test('anything else gets an honest, non-specific message', () => {
+        expect(describeUpdateError(new Error('HttpError: 403 rate limit exceeded'))).toMatch(/busy/);
+        expect(describeUpdateError(new Error('ZIP file is corrupt'))).toMatch(/Something went wrong/);
+        expect(describeUpdateError(null)).toMatch(/Something went wrong/);
+        expect(describeUpdateError('plain string')).toMatch(/Something went wrong/);
     });
 });

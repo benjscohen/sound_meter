@@ -219,6 +219,19 @@ async function run() {
     await js(meter, `document.getElementById('orb').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))`);
     await until(() => js(meter, `document.getElementById('stage').classList.contains('hover')
         && getComputedStyle(document.getElementById('options')).opacity === '1'`), 'Options button on hover');
+    const clipped = await js(meter, `(() => {
+        // A shadow reaches its offset plus blur beyond the box; all of it must fit inside the window.
+        const reach = (el) => {
+            const box = el.getBoundingClientRect();
+            const [, , y, blur] = getComputedStyle(el).boxShadow.match(/(-?[\\d.]+)px (-?[\\d.]+)px (-?[\\d.]+)px/) || [0, 0, 0, 0];
+            return { bottom: box.bottom + Number(y) + Number(blur), left: box.left - Number(blur), right: box.right + Number(blur) };
+        };
+        return ['options', 'pill'].filter((id) => {
+            const r = reach(document.getElementById(id));
+            return r.bottom > innerHeight || r.left < 0 || r.right > innerWidth;
+        });
+    })()`);
+    if (clipped.length) throw new Error(`Shadow would be cut off by the window edge: ${clipped}`);
     await shoot(meter, '6b-meter-hover');
     await js(meter, `document.getElementById('options').click()`);
     await until(() => outside.menus === 1, 'Options button to open the menu');
