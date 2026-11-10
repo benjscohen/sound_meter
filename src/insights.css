@@ -580,7 +580,7 @@ h2 {
 /* --- Share dialog -------------------------------------------------------- */
 
 dialog {
-    width: min(640px, calc(100vw - 48px));
+    width: min(620px, calc(100vw - 48px));
     padding: 22px;
     border: 1px solid var(--line);
     border-radius: 18px;
@@ -589,9 +589,27 @@ dialog {
     box-shadow: var(--shadow-lg);
 }
 
+dialog[open] {
+    animation: rise 0.28s var(--ease);
+}
+
 dialog::backdrop {
     background: rgb(10 20 32 / 0.45);
     backdrop-filter: blur(3px);
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+}
+
+.dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 dialog h2 {
@@ -599,13 +617,91 @@ dialog h2 {
     letter-spacing: -0.015em;
 }
 
+.btn.close {
+    width: 30px;
+    height: 30px;
+    margin: -4px -6px 0 0;
+    padding: 0;
+    border-radius: 50%;
+}
+
 #share-canvas {
     display: block;
     width: 100%;
     height: auto;
-    margin: 16px 0;
+    margin: 16px 0 14px;
     border: 1px solid var(--line);
     border-radius: 12px;
+}
+
+.share-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 5px 5px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+}
+
+#share-url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink-2);
+    font: 12.5px ui-monospace, "SF Mono", Menlo, monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: text;
+}
+
+.share-link .btn.primary {
+    flex: none;
+    height: 32px;
+    padding: 0 16px;
+    font-size: 13px;
+}
+
+.share-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.share-label {
+    flex: none;
+    color: var(--ink-3);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    appearance: none;
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font: 500 12.5px/1 var(--font);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s var(--ease);
+}
+
+.chip:hover {
+    border-color: var(--ink-3);
+    transform: translateY(-1px);
+}
+
+.chip:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
 }
 
 .dialog-actions {
@@ -613,11 +709,9 @@ dialog h2 {
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-}
-
-.dialog-actions .btn.primary {
-    height: 34px;
-    font-size: 13px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
 }
 
 .copied {
@@ -625,6 +719,14 @@ dialog h2 {
     color: var(--green);
     font-size: 13px;
     font-weight: 550;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 0.2s, transform 0.2s var(--ease);
+}
+
+.copied.show {
+    opacity: 1;
+    transform: none;
 }
 
 @media (max-width: 860px) {

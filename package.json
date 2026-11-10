@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A floating orb for your Mac that shows when you are getting loud.",
   "repository": {
     "type": "git",
@@ -13,7 +13,8 @@
     "test": "jest",
     "smoke": "electron -r ./scripts/smoke.js .",
     "assets": "node scripts/make-tray-icon.js && electron scripts/render-assets.js",
-    "build:helper": "sh scripts/build-helper.sh"
+    "build:helper": "sh scripts/build-helper.sh",
+    "check:share": "node scripts/check-share.mjs"
   },
   "build": {
     "publish": {

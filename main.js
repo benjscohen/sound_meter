@@ -8,6 +8,7 @@ const { createSettings } = require('./src/main/settings');
 const { createHistory } = require('./src/main/history');
 const { createNative } = require('./src/main/native');
 const analytics = require('./src/main/analytics');
+const { prepareShare, destinationUrl } = require('./src/main/share');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 const METER_SIZE = 168;
@@ -595,23 +596,51 @@ function registerIpc() {
     ipcMain.handle('calendar:connect', () => connectCalendar());
     ipcMain.handle('calendar:disconnect', () => disconnectCalendar());
 
-    // The share card arrives as a PNG data URL drawn by the Insights window.
+    // Sharing. The dialog asks for a share to be prepared; every later
+    // action uses that prepared share, so a window can only ever send out
+    // the link and words built here.
+    let share = null;
     const shareImage = (dataUrl) => {
         if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,') || dataUrl.length > 8e6) return null;
         const image = nativeImage.createFromDataURL(dataUrl);
         return image.isEmpty() ? null : image;
     };
-    ipcMain.handle('share:copy', (_event, dataUrl) => {
+    ipcMain.handle('share:prepare', async () => {
+        share = prepareShare(await trendInsights());
+        return share && { card: share.card, url: share.url, displayUrl: share.displayUrl, destinations: share.destinations };
+    });
+    ipcMain.handle('share:copy-link', () => {
+        if (share) clipboard.writeText(share.url);
+        return !!share;
+    });
+    ipcMain.handle('share:copy-image', (_event, dataUrl) => {
         const image = shareImage(dataUrl);
         if (image) clipboard.writeImage(image);
         return !!image;
     });
-    ipcMain.handle('share:menu', (_event, dataUrl) => {
+    ipcMain.handle('share:open', (_event, key) => {
+        const url = share && destinationUrl(key, share.stats);
+        if (url) shell.openExternal(url);
+        return !!url;
+    });
+    ipcMain.handle('share:more', (_event, dataUrl) => {
         const image = shareImage(dataUrl);
-        if (!image || !insightsWindow) return false;
+        if (!share || !image || !insightsWindow) return false;
         const file = path.join(app.getPath('temp'), 'My week on Shhh.it.png');
         fs.writeFileSync(file, image.toPNG());
-        new ShareMenu({ filePaths: [file] }).popup({ window: insightsWindow });
+        new ShareMenu({ texts: [share.caption], urls: [share.url], filePaths: [file] }).popup({ window: insightsWindow });
+        return true;
+    });
+    ipcMain.handle('share:save', async (_event, dataUrl) => {
+        const image = shareImage(dataUrl);
+        if (!image) return false;
+        const { canceled, filePath } = await dialog.showSaveDialog(insightsWindow, {
+            title: 'Save your week',
+            defaultPath: path.join(app.getPath('downloads'), 'My week on Shhh.it.png'),
+            filters: [{ name: 'PNG image', extensions: ['png'] }]
+        });
+        if (canceled || !filePath) return false;
+        fs.writeFileSync(filePath, image.toPNG());
         return true;
     });
 

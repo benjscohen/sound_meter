@@ -112,14 +112,35 @@
     </div>
 
     <dialog id="share-dialog" aria-labelledby="share-title">
-        <h2 id="share-title">Share your week</h2>
-        <p class="sub">Only your totals are on the card. No meeting names, no people.</p>
+        <div class="dialog-head">
+            <div>
+                <h2 id="share-title">Share your week</h2>
+                <p class="sub">Totals only. No meeting names, no people, nothing stored online.</p>
+            </div>
+            <button class="btn ghost close" id="share-close" type="button" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+
         <canvas id="share-canvas" width="1200" height="630" aria-label="Preview of your share card"></canvas>
+
+        <div class="share-link">
+            <span id="share-url" title="This link shows your card wherever you paste it"></span>
+            <button class="btn primary" id="share-copy-link" type="button">Copy link</button>
+        </div>
+
+        <div class="share-row">
+            <span class="share-label">Post to</span>
+            <div class="chips" id="share-destinations"></div>
+        </div>
+
         <div class="dialog-actions">
-            <span class="copied" id="share-copied" role="status" hidden>Copied. Paste it anywhere.</span>
-            <button class="btn ghost" id="share-close" type="button">Close</button>
-            <button class="btn" id="share-menu" type="button">Share…</button>
-            <button class="btn primary" id="share-copy" type="button">Copy image</button>
+            <span class="copied" id="share-status" role="status"></span>
+            <button class="btn" id="share-save" type="button">Save image…</button>
+            <button class="btn" id="share-copy-image" type="button">Copy image</button>
         </div>
     </dialog>
 

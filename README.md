@@ -11,7 +11,7 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 - **Insights:** a private, per-minute history of how loud you were. *Day* shows a timeline with a breakdown by meeting and by call app; *Trends* shows the last four weeks: a weekday/hour heatmap, a calm streak, and your loudest meetings, people and apps. Export to CSV or delete any time.
 - **Calendar (opt-in):** reads events from the macOS Calendar app to attribute loudness to meetings and people. Events are read on demand and never stored.
 - **Call detection:** notices which app is using the microphone (Zoom, Teams, FaceTime, a browser…) so each minute can be credited to it. Needs macOS 14.2 or later.
-- **Share:** copy or share a card of your week's totals. No meeting names or people.
+- **Share:** a card of your week's totals plus a link (`shhh.it.com/s?…`) that shows the same card wherever it's pasted. Copy the link or image, post to X, LinkedIn, Threads, Bluesky, WhatsApp or email in one click, or use the macOS share sheet. The numbers travel in the link itself; nothing is stored online, and no meeting names or people are included.
 - **Privacy first:** runs 100% locally. Only loudness numbers are stored; audio is never recorded or transmitted.
 - **Auto-updates:** checks for new versions in the background.
 
@@ -46,6 +46,7 @@ npm start
 
 ```bash
 npm test         # unit tests (meter maths, history store, settings)
+npm run check:share   # app-built share links vs. the website's share page and preview image
 npm run smoke    # boots the real app with a fake microphone, walks through
                  # onboarding, the meter and Insights, and saves screenshots to ./shots
 ```
@@ -66,6 +67,7 @@ The `landing_page/` directory contains the source code for the product website (
 
 - **Live Download Count:** The site fetches data from the GitHub API to display the total number of downloads across all releases in real-time.
 - **Dynamic Links:** Download buttons automatically point to the latest available release artifact.
+- **Share pages:** `/s?…` (served by `landing_page/api/share.js`) shows a shared week, and `/api/og` renders its link-preview image. Both are stateless: every number comes from the query string and is range-checked.
 
 ## Build & Release
 

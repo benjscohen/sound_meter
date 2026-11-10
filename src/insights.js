@@ -568,19 +568,50 @@
         load();
     });
 
-    // Share: a picture of the week's totals, drawn here and handed to the
-    // main process to copy or pass to the macOS share sheet.
+    // Share: a card of the week's totals plus a link that shows the same
+    // card wherever it is pasted. The main process builds both.
+    let statusTimer = null;
+    function shareStatus(done, message) {
+        if (!done) return;
+        const status = $('share-status');
+        status.textContent = message;
+        status.classList.add('show');
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => status.classList.remove('show'), 2600);
+    }
+    const cardImage = () => $('share-canvas').toDataURL('image/png');
+
     $('share').addEventListener('click', async () => {
-        const trends = await api.getTrends();
-        window.ShareCard.draw($('share-canvas'), trends);
-        $('share-copied').hidden = true;
+        const share = await api.share.prepare();
+        if (!share) return;
+        window.ShareCard.draw($('share-canvas'), share.card);
+        $('share-url').textContent = share.displayUrl;
+
+        const chips = share.destinations.map(({ key, label }) => {
+            const chip = el('button', 'chip', label);
+            chip.type = 'button';
+            chip.dataset.destination = key;
+            chip.addEventListener('click', () => api.share.open(key));
+            return chip;
+        });
+        const more = el('button', 'chip', 'More…');
+        more.type = 'button';
+        more.id = 'share-more';
+        more.title = 'Messages, Mail, AirDrop and more';
+        more.addEventListener('click', () => api.share.more(cardImage()));
+        $('share-destinations').replaceChildren(...chips, more);
+
+        $('share-status').classList.remove('show');
         $('share-dialog').showModal();
+        $('share-copy-link').focus();
     });
     $('share-close').addEventListener('click', () => $('share-dialog').close());
-    $('share-copy').addEventListener('click', async () => {
-        $('share-copied').hidden = !(await api.copyShareCard($('share-canvas').toDataURL('image/png')));
+    $('share-dialog').addEventListener('click', (event) => {
+        if (event.target === $('share-dialog')) $('share-dialog').close(); // Click on the backdrop
     });
-    $('share-menu').addEventListener('click', () => api.openShareMenu($('share-canvas').toDataURL('image/png')));
+    $('share-copy-link').addEventListener('click', async () => shareStatus(await api.share.copyLink(), 'Link copied'));
+    $('share-copy-image').addEventListener('click', async () => shareStatus(await api.share.copyImage(cardImage()), 'Image copied'));
+    $('share-save').addEventListener('click', async () => shareStatus(await api.share.saveImage(cardImage()), 'Image saved'));
 
     $('export').addEventListener('click', () => api.exportHistory());
     $('clear').addEventListener('click', async () => {
