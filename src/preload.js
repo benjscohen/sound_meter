@@ -35,7 +35,12 @@ contextBridge.exposeInMainWorld('soundMeter', {
     // Insights.
     openInsights: () => ipcRenderer.send('insights:open'),
     listDays: (limit) => ipcRenderer.invoke('history:days', limit),
-    getDay: (date) => ipcRenderer.invoke('history:day', date),
+    getDay: (date) => ipcRenderer.invoke('insights:day', date),
+    getTrends: () => ipcRenderer.invoke('insights:trends'),
+    connectCalendar: () => ipcRenderer.invoke('calendar:connect'),
+    disconnectCalendar: () => ipcRenderer.invoke('calendar:disconnect'),
+    copyShareCard: (dataUrl) => ipcRenderer.invoke('share:copy', dataUrl),
+    openShareMenu: (dataUrl) => ipcRenderer.invoke('share:menu', dataUrl),
     exportHistory: () => ipcRenderer.invoke('history:export'),
     clearHistory: () => ipcRenderer.invoke('history:clear'),
     onSample: (callback) => subscribe('history:sample', callback)

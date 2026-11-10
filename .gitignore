@@ -30,3 +30,6 @@ certificate*
 
 # Smoke-test screenshots
 shots
+
+# Compiled native helper
+native/bin

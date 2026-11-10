@@ -21,11 +21,11 @@ body {
     padding: 0;
     border: 0;
     outline: none;
-    cursor: grab;
+    cursor: pointer;
     transition: filter 0.2s;
 }
 
-#orb:active {
+#stage.dragging #orb {
     cursor: grabbing;
 }
 
@@ -99,7 +99,8 @@ body {
     }
 }
 
-#pill {
+#pill,
+#options {
     position: absolute;
     left: 50%;
     bottom: 6px;
@@ -121,8 +122,35 @@ body {
     pointer-events: none;
 }
 
-#stage.hover #pill,
-#stage.notice #pill {
+/* Hovering swaps any status message for a real, clickable Options button. */
+#options {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    cursor: pointer;
+}
+
+#options svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+#options:hover {
+    background: rgb(40 47 58 / 0.94);
+}
+
+#stage.hover #options,
+#stage.notice:not(.hover) #pill {
     opacity: 1;
     transform: translate(-50%, 0);
+}
+
+#stage.hover #options {
+    pointer-events: auto;
 }

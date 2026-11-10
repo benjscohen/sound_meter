@@ -102,17 +102,50 @@ describe('history', () => {
     test('exports CSV and clears', () => {
         const history = createHistory(dir);
         history.record({ avg: 0.5, peak: 1 }, at(4, 9, 5));
-        history.record({ avg: 0.8, peak: 0.9 }, at(5, 14, 30));
+        history.record({ avg: 0.8, peak: 0.9 }, at(5, 14, 30), { app: 'Zoom "Pro"' });
 
         expect(history.toCsv().trim().split('\n')).toEqual([
-            'date,time,seconds_monitored,average_level_pct,peak_level_pct,loud_seconds',
-            '2026-05-04,09:05,1,50,100,0',
-            '2026-05-05,14:30,1,80,90,1'
+            'date,time,seconds_monitored,average_level_pct,peak_level_pct,loud_seconds,app',
+            '2026-05-04,09:05,1,50,100,0,',
+            '2026-05-05,14:30,1,80,90,1,"Zoom ""Pro"""'
         ]);
 
         history.clear();
         expect(history.listDates()).toEqual([]);
         expect(fs.readdirSync(dir)).toEqual([]);
+    });
+
+    test('credits each minute to the app in use for most of it', () => {
+        const history = createHistory(dir);
+        for (let s = 0; s < 60; s++) history.record({ avg: 0.3, peak: 0.3 }, at(4, 9, 0, s), { app: s < 40 ? 'Zoom' : 'Slack' });
+        for (let s = 0; s < 60; s++) history.record({ avg: 0.3, peak: 0.3 }, at(4, 9, 1, s), { app: s < 20 ? 'Zoom' : null });
+        history.flush();
+
+        const { minutes } = createHistory(dir).getDay('2026-05-04');
+        expect(minutes.map((m) => m.app)).toEqual(['Zoom', null]);
+
+        // A reloaded minute keeps its app when more samples arrive.
+        const reopened = createHistory(dir);
+        reopened.record({ avg: 0.3, peak: 0.3 }, at(4, 9, 0, 59));
+        expect(reopened.getDay('2026-05-04').minutes[0].app).toBe('Zoom');
+    });
+
+    test('reads files written before apps were recorded', () => {
+        fs.writeFileSync(path.join(dir, '2026-05-04.json'), JSON.stringify({ v: 1, minutes: [[at(4, 9, 0), 60, 12, 0.5, 3]] }));
+        const { minutes, summary } = createHistory(dir).getDay('2026-05-04');
+        expect(minutes).toEqual([{ t: at(4, 9, 0), n: 60, avg: 0.2, peak: 0.5, loud: 3, app: null }]);
+        expect(summary.loudSeconds).toBe(3);
+    });
+
+    test('getRange returns the last N days, oldest first', () => {
+        const history = createHistory(dir);
+        history.record({ avg: 0.1, peak: 0.1 }, at(1, 9, 0));
+        history.record({ avg: 0.2, peak: 0.2 }, at(19, 9, 0));
+        history.record({ avg: 0.3, peak: 0.3 }, at(20, 9, 0));
+
+        const range = history.getRange(2, at(20, 12, 0));
+        expect(range.map((m) => m.avg)).toEqual([0.2, 0.3]);
+        expect(history.getRange(28, at(20, 12, 0))).toHaveLength(3);
     });
 
     test('localDate formats in local time', () => {

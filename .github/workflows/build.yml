@@ -28,6 +28,12 @@ jobs:
 
     - name: Run unit tests
       run: npm test
+
+    - name: Build and check native helper
+      run: |
+        npm run build:helper
+        ./native/bin/sm-helper calendar-status
+        ./native/bin/sm-helper mic-apps
     
     - name: Import Code Signing Certificate
       env:

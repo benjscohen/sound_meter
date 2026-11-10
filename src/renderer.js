@@ -8,11 +8,13 @@
     const stage = document.getElementById('stage');
     const orb = document.getElementById('orb');
     const pill = document.getElementById('pill');
+    const options = document.getElementById('options');
 
     const MAX_SCALE_GAIN = 1.3;      // Orb grows from 60px to ~138px
     const ALERT_AFTER_MS = 1500;     // Sustained loudness before the ripple
     const DRAG_THRESHOLD = 4;        // Pixels of movement that turn a click into a drag
     const RETRY_MS = 4000;
+    const HOVER_GRACE_MS = 400;      // Time to travel from the orb to the Options button
 
     let state = null;
     let stream = null;
@@ -187,13 +189,29 @@
     /* ------------------------------------------------------- interaction */
 
     let hovering = false;
+    let leaveTimer = null;
     let drag = null;
 
-    function setHover(over) {
-        if (drag || over === hovering) return;
+    function applyHover(over) {
         hovering = over;
         stage.classList.toggle('hover', over);
         api.setIgnoreMouse(!over);
+    }
+
+    // Hover starts at once but ends after a short grace period, so the
+    // Options button doesn't vanish on the way to it.
+    function setHover(over) {
+        if (drag) return;
+        if (over) {
+            clearTimeout(leaveTimer);
+            leaveTimer = null;
+            if (!hovering) applyHover(true);
+        } else if (hovering && !leaveTimer) {
+            leaveTimer = setTimeout(() => {
+                leaveTimer = null;
+                applyHover(false);
+            }, HOVER_GRACE_MS);
+        }
     }
 
     // The window ignores the mouse (so clicks reach whatever is underneath)
@@ -216,6 +234,7 @@
         const dy = event.screenY - drag.y;
         if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         drag.moved = true;
+        stage.classList.add('dragging');
         api.dragMove(dx, dy);
     });
 
@@ -223,6 +242,7 @@
         if (!drag) return;
         const wasClick = !drag.moved;
         drag = null;
+        stage.classList.remove('dragging');
         if (orb.hasPointerCapture(event.pointerId)) orb.releasePointerCapture(event.pointerId);
         api.dragEnd();
         if (wasClick && event.type === 'pointerup') api.openMenu();
@@ -234,6 +254,7 @@
         event.preventDefault();
         api.openMenu();
     });
+    options.addEventListener('click', () => api.openMenu());
     orb.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') api.openMenu();
     });
@@ -269,7 +290,7 @@
         onState(initial);
         requestAnimationFrame(frame);
         setTimeout(() => {
-            if (stage.dataset.state === 'listening') flashNotice('Click for options');
+            if (stage.dataset.state === 'listening') flashNotice('Click the orb for options', 8000);
         }, 900);
     });
 })();
