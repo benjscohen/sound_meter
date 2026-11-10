@@ -20,14 +20,25 @@
             </div>
             <div class="top-actions">
                 <span class="live" id="live" hidden><i></i><span id="live-text">Listening</span></span>
-                <button class="btn" id="export" type="button">
+                <div class="segmented tabs" id="tabs" role="tablist" aria-label="View">
+                    <button type="button" role="tab" data-view="day" aria-pressed="true">Day</button>
+                    <button type="button" role="tab" data-view="trends" aria-pressed="false">Trends</button>
+                </div>
+                <button class="btn" id="share" type="button" title="Share your week as an image">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 15V4m0 0L8 8m4-4 4 4M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6" />
+                    </svg>
+                    Share
+                </button>
+                <button class="btn" id="export" type="button" title="Export history as CSV">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
                     </svg>
-                    Export CSV
+                    Export
                 </button>
-                <button class="btn ghost" id="clear" type="button">Clear history</button>
+                <button class="btn ghost" id="clear" type="button">Clear</button>
             </div>
         </header>
 
@@ -39,29 +50,9 @@
             <p class="fine">Only loudness numbers are saved, on this Mac. Never audio.</p>
         </section>
 
-        <div id="content" hidden>
-            <section class="metrics">
-                <article class="card metric">
-                    <h3>Loud time</h3>
-                    <p class="value" id="m-loud">–</p>
-                    <p class="note" id="m-loud-note"></p>
-                </article>
-                <article class="card metric">
-                    <h3>Average level</h3>
-                    <p class="value" id="m-avg">–</p>
-                    <p class="note" id="m-avg-note"></p>
-                </article>
-                <article class="card metric">
-                    <h3>Peak</h3>
-                    <p class="value" id="m-peak">–</p>
-                    <p class="note" id="m-peak-note"></p>
-                </article>
-                <article class="card metric">
-                    <h3>Time monitored</h3>
-                    <p class="value" id="m-time">–</p>
-                    <p class="note" id="m-time-note"></p>
-                </article>
-            </section>
+        <!-- Day: one day in detail -->
+        <div class="view" id="view-day" hidden>
+            <section class="metrics" id="day-metrics"></section>
 
             <section class="card panel">
                 <div class="panel-head">
@@ -81,6 +72,11 @@
                 </div>
             </section>
 
+            <div class="columns">
+                <section class="card panel" id="day-meetings"></section>
+                <section class="card panel" id="day-apps"></section>
+            </div>
+
             <section class="card panel">
                 <div class="panel-head">
                     <div>
@@ -91,9 +87,44 @@
                 <div class="days" id="days" role="listbox" aria-label="Days"></div>
             </section>
         </div>
+
+        <!-- Trends: patterns across weeks -->
+        <div class="view" id="view-trends" hidden>
+            <section class="metrics" id="trend-metrics"></section>
+
+            <section class="card panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>When you get loud</h2>
+                        <p class="sub" id="heatmap-sub"></p>
+                    </div>
+                    <div class="scale" aria-hidden="true"><span>Calm</span><i></i><span>Loud</span></div>
+                </div>
+                <div class="heatmap" id="heatmap"></div>
+            </section>
+
+            <div class="columns">
+                <section class="card panel" id="trend-meetings"></section>
+                <section class="card panel" id="trend-people"></section>
+                <section class="card panel" id="trend-apps"></section>
+            </div>
+        </div>
     </div>
 
+    <dialog id="share-dialog" aria-labelledby="share-title">
+        <h2 id="share-title">Share your week</h2>
+        <p class="sub">Only your totals are on the card. No meeting names, no people.</p>
+        <canvas id="share-canvas" width="1200" height="630" aria-label="Preview of your share card"></canvas>
+        <div class="dialog-actions">
+            <span class="copied" id="share-copied" role="status" hidden>Copied. Paste it anywhere.</span>
+            <button class="btn ghost" id="share-close" type="button">Close</button>
+            <button class="btn" id="share-menu" type="button">Share…</button>
+            <button class="btn primary" id="share-copy" type="button">Copy image</button>
+        </div>
+    </dialog>
+
     <script src="utils/audio-visualizer.js"></script>
+    <script src="share-card.js"></script>
     <script src="insights.js"></script>
 </body>
 

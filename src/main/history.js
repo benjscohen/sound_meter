@@ -1,41 +1,34 @@
 const fs = require('fs');
 const path = require('path');
 const { CONSTANTS } = require('../utils/audio-visualizer');
+const { aggregate, localDate } = require('./analytics');
 
 const MINUTE = 60 * 1000;
 const FILE_PATTERN = /^(\d{4}-\d{2}-\d{2})\.json$/;
-
-function localDate(ts) {
-    const d = new Date(ts);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function round(value) {
     return Math.round(value * 1000) / 1000;
 }
 
-function summarize(date, minutes) {
-    let seconds = 0;
-    let sum = 0;
-    let peak = 0;
-    let loudSeconds = 0;
-    let loudest = null;
+// The app credited for a minute is whichever was in use for most of it.
+function dominantApp(bucket) {
+    let best = null;
+    for (const [app, seconds] of Object.entries(bucket.apps || {})) {
+        if (!best || seconds > best[1]) best = [app, seconds];
+    }
+    return best && best[1] * 2 >= bucket.n ? best[0] : null;
+}
 
+// Day totals plus the loudest minute, for headlines like "Loudest around 2 PM".
+function summarize(date, minutes) {
+    let loudest = null;
     for (const m of minutes) {
-        seconds += m.n;
-        sum += m.avg * m.n;
-        loudSeconds += m.loud;
-        if (m.peak > peak) peak = m.peak;
         if (!loudest || m.avg > loudest.avg) loudest = m;
     }
-
+    const { share, ...totals } = aggregate(minutes);
     return {
         date,
-        seconds,
-        avg: seconds ? round(sum / seconds) : 0,
-        peak: round(peak),
-        loudSeconds,
+        ...totals,
         loudestAt: loudest ? loudest.t : null,
         loudestAvg: loudest ? loudest.avg : 0
     };
@@ -47,6 +40,7 @@ function summarize(date, minutes) {
  *
  * A "sample" is one second of listening: { avg, peak } expressed as a ratio
  * of the user's "too loud" threshold (see levelRatio in audio-visualizer).
+ * Each minute can also remember which call app was in use.
  */
 function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
     let current = null; // { date, minutes: Map<t, bucket>, dirty, lastMinute }
@@ -58,8 +52,9 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
         try {
             const parsed = JSON.parse(fs.readFileSync(fileFor(date), 'utf8'));
             for (const row of parsed.minutes || []) {
-                const [t, n, sum, peak, loud] = row;
-                if (Number.isFinite(t) && n > 0) minutes.set(t, { t, n, sum, peak, loud });
+                const [t, n, sum, peak, loud, app] = row;
+                if (!Number.isFinite(t) || !(n > 0)) continue;
+                minutes.set(t, { t, n, sum, peak, loud, apps: typeof app === 'string' && app ? { [app]: n } : {} });
             }
         } catch {
             // No file yet (or unreadable): treat as an empty day.
@@ -73,9 +68,14 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
             fs.mkdirSync(dir, { recursive: true });
             const rows = [...current.minutes.values()]
                 .sort((a, b) => a.t - b.t)
-                .map((m) => [m.t, m.n, round(m.sum), round(m.peak), m.loud]);
+                .map((m) => {
+                    const row = [m.t, m.n, round(m.sum), round(m.peak), m.loud];
+                    const app = dominantApp(m);
+                    if (app) row.push(app);
+                    return row;
+                });
             const tmp = `${fileFor(current.date)}.tmp`;
-            fs.writeFileSync(tmp, JSON.stringify({ v: 1, minutes: rows }));
+            fs.writeFileSync(tmp, JSON.stringify({ v: 2, minutes: rows }));
             fs.renameSync(tmp, fileFor(current.date));
             current.dirty = false;
         } catch (error) {
@@ -90,7 +90,7 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
         return current;
     }
 
-    function record(sample, ts = Date.now()) {
+    function record(sample, ts = Date.now(), { app = null } = {}) {
         if (!sample || typeof sample.avg !== 'number') return;
         const { avg, peak } = sample;
         if (!Number.isFinite(avg) || avg < 0) return;
@@ -104,13 +104,14 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
 
         let bucket = day.minutes.get(t);
         if (!bucket) {
-            bucket = { t, n: 0, sum: 0, peak: 0, loud: 0 };
+            bucket = { t, n: 0, sum: 0, peak: 0, loud: 0, apps: {} };
             day.minutes.set(t, bucket);
         }
         bucket.n += 1;
         bucket.sum += avg;
         bucket.peak = Math.max(bucket.peak, typeof peak === 'number' && Number.isFinite(peak) ? peak : avg);
         if (avg >= loudRatio) bucket.loud += 1;
+        if (typeof app === 'string' && app) bucket.apps[app] = (bucket.apps[app] || 0) + 1;
         day.dirty = true;
     }
 
@@ -118,7 +119,16 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
         const source = current && current.date === date ? current.minutes : readDay(date);
         return [...source.values()]
             .sort((a, b) => a.t - b.t)
-            .map((m) => ({ t: m.t, n: m.n, avg: round(m.sum / m.n), peak: round(m.peak), loud: m.loud }));
+            .map((m) => ({ t: m.t, n: m.n, avg: round(m.sum / m.n), peak: round(m.peak), loud: m.loud, app: dominantApp(m) }));
+    }
+
+    /** Every minute from the last `days` local days, oldest first. */
+    function getRange(days, now = Date.now()) {
+        const cutoff = localDate(now - (days - 1) * 24 * 60 * MINUTE);
+        return listDates()
+            .filter((date) => date >= cutoff)
+            .reverse()
+            .flatMap((date) => minutesFor(date));
     }
 
     function getDay(date) {
@@ -164,7 +174,7 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
     }
 
     function toCsv() {
-        const lines = ['date,time,seconds_monitored,average_level_pct,peak_level_pct,loud_seconds'];
+        const lines = ['date,time,seconds_monitored,average_level_pct,peak_level_pct,loud_seconds,app'];
         const pad = (n) => String(n).padStart(2, '0');
         for (const date of listDates().reverse()) {
             for (const m of minutesFor(date)) {
@@ -175,7 +185,8 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
                     m.n,
                     Math.round(m.avg * 100),
                     Math.round(m.peak * 100),
-                    m.loud
+                    m.loud,
+                    m.app ? `"${m.app.replace(/"/g, '""')}"` : ''
                 ].join(','));
             }
         }
@@ -193,7 +204,7 @@ function createHistory(dir, { loudRatio = CONSTANTS.LOUD_RATIO } = {}) {
         current = null;
     }
 
-    return { record, flush, getDay, listDays, listDates, prune, toCsv, clear };
+    return { record, flush, getDay, getRange, listDays, listDates, prune, toCsv, clear };
 }
 
 module.exports = { createHistory, localDate, summarize };

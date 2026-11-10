@@ -7,6 +7,7 @@ const DEFAULTS = Object.freeze({
     deviceId: null,
     deviceLabel: null,
     paused: false,
+    calendar: false, // Opted in to showing calendar meetings in Insights
     position: null // { x, y } of the floating meter
 });
 

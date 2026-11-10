@@ -6,11 +6,12 @@
 //   SMOKE_THEME=dark npm run smoke
 //
 // Loaded with `electron -r ./scripts/smoke.js .` so it runs before main.js.
-const { app, dialog, ipcMain, nativeTheme, BrowserWindow } = require('electron');
+const { app, clipboard, dialog, ipcMain, nativeTheme, BrowserWindow, Menu, ShareMenu } = require('electron');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
 const os = require('os');
 const path = require('path');
-const { createHistory } = require('../src/main/history');
+const { createHistory, localDate } = require('../src/main/history');
 
 const out = path.resolve(process.env.SMOKE_OUT || 'shots');
 const theme = process.env.SMOKE_THEME || 'light';
@@ -27,33 +28,66 @@ fs.mkdirSync(out, { recursive: true });
 // Auto-confirm the "Delete all history?" dialog.
 dialog.showMessageBox = async () => ({ response: 0 });
 
+// Things that would otherwise reach outside the test: record them instead of
+// popping up menus or overwriting the real clipboard.
+const outside = { menus: 0, copied: null, shared: 0 };
+Menu.prototype.popup = function popup() { outside.menus += 1; };
+ShareMenu.prototype.popup = function popup() { outside.shared += 1; };
+clipboard.writeImage = (image) => { outside.copied = image.getSize(); };
+
+// The working day used for both the seeded history and the fake calendar:
+// [title, start, end, app in use, how animated it gets, attendees].
+const SCHEDULE = [
+    ['Weekly sync', [9, 0], [9, 45], 'Zoom', 1.0, ['Maya Patel', 'Jordan Lee']],
+    ['Design review', [10, 0], [11, 0], 'Zoom', 1.25, ['Sam Rivera', 'Maya Patel', 'Chris Wong']],
+    ['1:1 with Sam', [13, 5], [13, 35], 'Browser call', 0.55, ['Sam Rivera']],
+    ['Customer call', [15, 0], [15, 45], 'Browser call', 1.5, ['Dana Kim']],
+    [null, [16, 0], [16, 40], null, 0.8, []] // Heads-down time, no meeting
+];
+
+const seededDays = [];
+for (let daysAgo = 13; daysAgo >= 0; daysAgo--) {
+    const day = new Date();
+    day.setDate(day.getDate() - daysAgo);
+    const weekend = day.getDay() === 0 || day.getDay() === 6;
+    if (!weekend || daysAgo === 0) seededDays.push(day); // Weekends off (but always seed today)
+}
+const clock = (day, [hours, minutes]) => new Date(day).setHours(hours, minutes, 0, 0);
+
 // Two weeks of believable history, so Insights has something to show.
 function seedHistory() {
     const history = createHistory(path.join(profile, 'history'));
-    const now = new Date();
     let seed = 7;
     const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
-    for (let daysAgo = 12; daysAgo >= 0; daysAgo--) {
-        if (daysAgo === 5 || daysAgo === 6) continue; // A weekend off
-        const day = new Date(now);
-        day.setDate(day.getDate() - daysAgo);
+    for (const day of seededDays) {
         const rowdiness = 0.6 + random() * 0.9;
-        const blocks = [[9, 0, 11, 40], [13, 5, 14, 30], [15, 0, 16 + (daysAgo % 2), 45]];
-
-        for (const [h0, m0, h1, m1] of blocks) {
-            const start = new Date(day).setHours(h0, m0, 0, 0);
-            const end = Math.min(new Date(day).setHours(h1, m1, 0, 0), now.getTime());
+        for (const [, from, to, appName, energy] of SCHEDULE) {
+            const end = Math.min(clock(day, to), Date.now());
             let mood = 0.25;
-            for (let t = start; t < end; t += 1000) {
-                if ((t / 1000) % 45 === 0) mood = 0.12 + random() * 0.5 * rowdiness;
-                const excited = Math.sin(t / 420000) > 0.86 ? 0.45 * rowdiness : 0;
+            for (let t = clock(day, from); t < end; t += 1000) {
+                if ((t / 1000) % 45 === 0) mood = 0.1 + random() * 0.42 * rowdiness * energy;
+                const excited = Math.sin(t / 420000) > 0.86 ? 0.4 * rowdiness * energy : 0;
                 const avg = Math.max(0, mood + excited + (random() - 0.5) * 0.18);
-                history.record({ avg, peak: avg + random() * 0.3 }, t);
+                history.record({ avg, peak: avg + random() * 0.3 }, t, { app: appName });
             }
         }
     }
     history.flush();
+}
+
+// Stand-ins for the native helper: a calendar that grants access when asked,
+// and Zoom holding the microphone.
+function writeFixtures() {
+    const events = seededDays.flatMap((day) => SCHEDULE
+        .filter(([title]) => title)
+        .map(([title, from, to, , , people]) => ({ title, start: clock(day, from), end: clock(day, to), people })));
+    const file = path.join(profile, 'fixtures.json');
+    fs.writeFileSync(file, JSON.stringify({
+        micApps: [{ bundleId: 'us.zoom.xos', name: 'zoom.us' }, { bundleId: 'com.github.Electron.helper', name: 'Electron' }],
+        calendar: { status: 'not-determined', statusAfterRequest: 'granted', events }
+    }));
+    process.env.SOUND_METER_FIXTURES = file;
 }
 
 async function shoot(win, name) {
@@ -87,7 +121,28 @@ app.on('web-contents-created', (_event, contents) => {
     contents.on('preload-error', (_e, file, error) => problems.push(`preload error: ${error.message}`));
 });
 
+// The real native helper, where it has been built: its read-only commands
+// must answer with well-formed JSON (neither asks for any permission).
+function checkHelper() {
+    const helper = path.join(__dirname, '..', 'native', 'bin', 'sm-helper');
+    if (!fs.existsSync(helper)) {
+        console.log('  - native helper not built, skipping its check (npm run build:helper)');
+        return;
+    }
+    const ask = (...args) => JSON.parse(execFileSync(helper, args, { timeout: 10000, encoding: 'utf8' }));
+    const mic = ask('mic-apps');
+    if (typeof mic.supported !== 'boolean' || !Array.isArray(mic.apps)) throw new Error('Helper mic-apps reply is malformed');
+    if (mic.apps.some((entry) => typeof entry.bundleId !== 'string')) throw new Error('Helper mic-apps entries need a bundleId');
+    const { status } = ask('calendar-status');
+    if (!['granted', 'denied', 'restricted', 'not-determined'].includes(status)) throw new Error(`Unexpected calendar status: ${status}`);
+    const events = ask('calendar-events', '0', '1');
+    if (!Array.isArray(events.events)) throw new Error('Helper calendar-events reply is malformed');
+    console.log(`  ✓ native helper (calendar: ${status}, mic apps supported: ${mic.supported})`);
+}
+
 async function run() {
+    checkHelper();
+
     /* ---- First run: onboarding ---------------------------------------- */
     const welcome = await until(() => find('onboarding.html'), 'welcome window');
     await until(() => js(welcome, `document.querySelector('.step.active') !== null`), 'welcome content');
@@ -132,6 +187,16 @@ async function run() {
     if (!moved) throw new Error('Orb never reacted');
     await shoot(meter, '6-meter-active');
 
+    // Hovering the orb reveals an explicit Options button that opens the menu.
+    await js(meter, `document.getElementById('orb').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))`);
+    await until(() => js(meter, `document.getElementById('stage').classList.contains('hover')
+        && getComputedStyle(document.getElementById('options')).opacity === '1'`), 'Options button on hover');
+    await shoot(meter, '6b-meter-hover');
+    await js(meter, `document.getElementById('options').click()`);
+    await until(() => outside.menus === 1, 'Options button to open the menu');
+    await js(meter, `document.dispatchEvent(new MouseEvent('mouseleave'))`);
+    await until(() => js(meter, `!document.getElementById('stage').classList.contains('hover')`), 'hover to end');
+
     // Pause from "the menu" (same code path: a settings update).
     await js(meter, `window.soundMeter.updateSettings({ paused: true })`);
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'paused'`), 'paused state');
@@ -153,13 +218,18 @@ async function run() {
     await until(() => js(meter, `window.soundMeter.listDays(1).then((d) => d.length > 0 && d[0].seconds >= 2)`),
         'samples to reach history', 10000);
 
-    /* ---- Insights ------------------------------------------------------- */
+    /* ---- Insights: Day -------------------------------------------------- */
+    const text = (selector) => js(insights, `[...document.querySelectorAll(${JSON.stringify(selector)})].map((n) => n.textContent.trim())`);
+    const visible = (id) => js(insights, `!document.getElementById(${JSON.stringify(id)}).hidden`);
+    const scrollTo = (id) => js(insights, `document.getElementById(${JSON.stringify(id)}).scrollIntoView({ block: 'start' })`);
+
     ipcMain.emit('insights:open', {});
     const insights = await until(() => find('insights.html'), 'insights window');
     await until(() => js(insights, `document.querySelectorAll('.day:not(:disabled)').length > 5`), 'seeded days');
     await until(() => js(insights, `document.querySelectorAll('#chart-svg path.avg').length > 0`), 'chart');
+    if ((await text('#day-metrics .metric')).length !== 4) throw new Error('Day metrics missing');
     await wait(600);
-    await shoot(insights, '8-insights');
+    await shoot(insights, '8-insights-day');
 
     const yesterday = await js(insights, `(() => {
         const days = [...document.querySelectorAll('.day:not(:disabled)')];
@@ -171,15 +241,85 @@ async function run() {
     await js(insights, `(() => {
         const svg = document.getElementById('chart-svg');
         const box = svg.getBoundingClientRect();
-        svg.dispatchEvent(new MouseEvent('mousemove', { clientX: box.left + box.width * 0.42, clientY: box.top + 80, bubbles: true }));
+        svg.dispatchEvent(new MouseEvent('mousemove', { clientX: box.left + box.width * 0.12, clientY: box.top + 80, bubbles: true }));
     })()`);
     if (await js(insights, `document.getElementById('tooltip').hidden`)) throw new Error('Chart tooltip did not appear');
-    await shoot(insights, '9-insights-previous-day');
+    if (!(await text('#tooltip'))[0].includes('Zoom')) throw new Error('Tooltip should name the call app');
+
+    // Apps need no permission, so the "Where" card is there from the start.
+    const apps = await text('#day-apps .row-label');
+    if (!apps.includes('Zoom') || !apps.includes('Browser call')) throw new Error(`Unexpected apps: ${apps}`);
+
+    // Meetings are opt-in: first an invitation, then (once allowed) the list.
+    if ((await text('#day-meetings .row')).length) throw new Error('Meetings shown before calendar was connected');
+    await js(insights, `document.querySelector('#day-meetings #connect-calendar').click()`);
+    await until(async () => (await text('#day-meetings .row-label')).length >= 4, 'meetings after connecting calendar');
+    const meetings = await text('#day-meetings .row-label');
+    if (meetings.join('|') !== 'Weekly sync|Design review|1:1 with Sam|Customer call') throw new Error(`Unexpected meetings: ${meetings}`);
+    if (!JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8')).calendar) throw new Error('Calendar opt-in was not saved');
+    await scrollTo('chart');
+    await shoot(insights, '9-insights-day-meetings');
+
+    // The app on the (fake) call is detected, so live samples get credited to it.
+    await until(() => js(meter, `window.soundMeter.getState().then((s) => s.micApp === 'Zoom')`), 'call app detection', 15000);
+
+    /* ---- Insights: Trends ------------------------------------------------ */
+    await js(insights, `document.querySelector('#tabs [data-view="trends"]').click()`);
+    await until(() => visible('view-trends'), 'trends view');
+    await until(async () => (await text('#trend-metrics .metric')).length === 4, 'trend metrics');
+    await until(() => js(insights, `document.querySelectorAll('.heat-cell.on').length >= 20`), 'heatmap');
+    if (!(await text('#heatmap-sub'))[0].startsWith('You’re loudest on')) throw new Error('Heatmap headline missing');
+
+    const trendMeetings = await text('#trend-meetings .row-label');
+    if (trendMeetings[0] !== 'Customer call' || trendMeetings.at(-1) !== '1:1 with Sam') {
+        throw new Error(`Meetings should rank loudest first: ${trendMeetings}`);
+    }
+    const sessions = (await text('#trend-meetings .row-sub'))[0];
+    if (!/^\d+ sessions · /.test(sessions)) throw new Error(`Repeats should roll up: ${sessions}`);
+    const people = await text('#trend-people .row-label');
+    if (people[0] !== 'Dana Kim' || !people.includes('Sam Rivera')) throw new Error(`Unexpected people: ${people}`);
+    if (!(await text('#trend-apps .row-label')).includes('No call app')) throw new Error('Trends apps missing');
+    if (await visible('view-day')) throw new Error('Day view should be hidden on Trends');
+    await wait(500);
+    await shoot(insights, '10-insights-trends');
+    await scrollTo('trend-meetings');
+    await shoot(insights, '11-insights-trends-lists');
+
+    // Share: a card with the week's totals, copied or sent to the share sheet.
+    await js(insights, `window.scrollTo(0, 0)`);
+    await js(insights, `document.getElementById('share').click()`);
+    await until(() => js(insights, `document.getElementById('share-dialog').open`), 'share dialog');
+    const card = await js(insights, `window.soundMeter.getTrends().then((t) => window.ShareCard.summarize(t))`);
+    if (!(card.calm >= 50 && card.calm <= 100) || card.stats.length !== 3) throw new Error(`Odd share card: ${JSON.stringify(card)}`);
+    const painted = await js(insights, `(() => {
+        const { data, width } = document.getElementById('share-canvas').getContext('2d').getImageData(0, 0, 1200, 630);
+        const pixel = (x, y) => data.subarray((y * width + x) * 4, (y * width + x) * 4 + 4);
+        const [orb, corner] = [pixel(980, 290), pixel(600, 20)];
+        return orb[3] === 255 && Math.abs(orb[0] - corner[0]) + Math.abs(orb[2] - corner[2]) > 40;
+    })()`);
+    if (!painted) throw new Error('Share card was not drawn');
+    await js(insights, `document.getElementById('share-copy').click()`);
+    await until(() => outside.copied, 'share card to be copied');
+    if (outside.copied.width !== 1200 || outside.copied.height !== 630) throw new Error('Copied card has the wrong size');
+    await until(() => visible('share-copied'), 'copied confirmation');
+    await shoot(insights, '12-insights-share');
+    await js(insights, `document.getElementById('share-menu').click()`);
+    await until(() => outside.shared === 1, 'share sheet');
+    await js(insights, `document.getElementById('share-close').click()`);
+    if (await js(insights, `document.getElementById('share-dialog').open`)) throw new Error('Share dialog did not close');
 
     insights.setSize(740, 600);
     await wait(500);
-    await shoot(insights, '10-insights-narrow');
+    await shoot(insights, '12b-insights-trends-narrow');
     insights.setSize(980, 720);
+
+    // Turning the calendar off (as the menu does) puts the invitation back.
+    await js(insights, `window.soundMeter.disconnectCalendar()`);
+    await until(async () => (await text('#trend-meetings #connect-calendar')).length === 1, 'calendar invitation to return');
+    if (await visible('trend-people')) throw new Error('People should hide without calendar access');
+
+    await js(insights, `document.querySelector('#tabs [data-view="day"]').click()`);
+    await until(() => visible('view-day'), 'day view');
 
     // Clearing history (confirmation auto-accepted above) shows the empty state.
     await js(meter, `window.soundMeter.updateSettings({ paused: true })`);
@@ -188,10 +328,12 @@ async function run() {
     await until(() => js(insights, `!document.getElementById('empty').hidden`), 'empty state');
     if (fs.readdirSync(path.join(profile, 'history')).length) throw new Error('History files were not deleted');
     await wait(400);
-    await shoot(insights, '11-insights-empty');
+    if (await visible('tabs')) throw new Error('Tabs should hide with no history');
+    await shoot(insights, '13-insights-empty');
 }
 
 seedHistory();
+writeFixtures();
 
 app.whenReady().then(async () => {
     let failed = false;

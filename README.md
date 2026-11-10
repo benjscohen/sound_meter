@@ -8,7 +8,10 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 - **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
 - **Click for everything:** click the orb (or the menu-bar icon) to switch microphone, change sensitivity, pause, or open Insights. Drag it anywhere; it remembers where you put it.
 - **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
-- **Insights:** a private, per-minute history of how loud you were, with a daily timeline and a 14-day overview. Export to CSV or delete any time.
+- **Insights:** a private, per-minute history of how loud you were. *Day* shows a timeline with a breakdown by meeting and by call app; *Trends* shows the last four weeks: a weekday/hour heatmap, a calm streak, and your loudest meetings, people and apps. Export to CSV or delete any time.
+- **Calendar (opt-in):** reads events from the macOS Calendar app to attribute loudness to meetings and people. Events are read on demand and never stored.
+- **Call detection:** notices which app is using the microphone (Zoom, Teams, FaceTime, a browser…) so each minute can be credited to it. Needs macOS 14.2 or later.
+- **Share:** copy or share a card of your week's totals. No meeting names or people.
 - **Privacy first:** runs 100% locally. Only loudness numbers are stored; audio is never recorded or transmitted.
 - **Auto-updates:** checks for new versions in the background.
 
@@ -53,7 +56,8 @@ npm run smoke    # boots the real app with a fake microphone, walks through
 - `src/preload.js` — the only bridge between windows and the main process
 - `src/index.html` + `renderer.js` — the floating meter
 - `src/onboarding.*`, `src/insights.*` — welcome flow and history window
-- `src/main/` — settings and history stores (plain JSON files in the app's user-data folder)
+- `src/main/` — settings and history stores (plain JSON files in the app's user-data folder), `analytics.js` (pure functions behind every Insights number) and `native.js` (bridge to the helper)
+- `native/sm-helper.swift` — small Swift binary for the two things Electron can't do: read the calendar (EventKit) and list apps using the microphone (CoreAudio). Build it with `npm run build:helper`; without it the app runs with those features hidden
 - `scripts/` — smoke test, asset generation (`npm run assets`), signing helpers
 
 ## Website / Landing Page

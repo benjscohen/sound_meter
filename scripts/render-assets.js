@@ -29,7 +29,7 @@ const page = (width, height, body, css = '') => `<!doctype html><meta charset="u
 const dmg = page(660, 420, `
     <div class="bg">
         <h1>Drag Sound Meter into Applications</h1>
-        <p>Then open it from Launchpad or Spotlight.</p>
+        <p>Then open Sound Meter from your Applications folder.</p>
         <svg class="arrow" viewBox="0 0 120 40">
             <path d="M6 20h80" fill="none" stroke="#0a2540" stroke-opacity=".38" stroke-width="5"
                 stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 13"/>
