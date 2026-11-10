@@ -9,7 +9,7 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 - **Listen only during calls:** hides the orb and releases the microphone unless another app is using it, with a short grace period so muting doesn't make it blink away.
 - **Notifications, both opt-in:** a quiet nudge after sustained loudness, and a weekly note that your week is ready (never during a call), which opens your share card.
 - **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
-- **Settings that stay open:** click the orb for a Settings panel where every change applies live, so you can adjust several things in one go. Right-click the orb, or use the menu-bar icon, for a quick menu. Drag the orb anywhere; it remembers where you put it.
+- **One window:** click the orb to open Sound Meter's single window, with a sidebar for Day, Trends and Settings. Settings apply live, so you can adjust several things in one go while watching the orb. Right-click the orb, or use the menu-bar icon, for a quick menu. Drag the orb anywhere; it remembers where you put it.
 - **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
 - **Insights:** a private, per-minute history of how loud you were. *Day* shows a timeline with a breakdown by meeting and by call app; *Trends* shows the last four weeks: a weekday/hour heatmap, a calm streak, and your loudest meetings, people and apps. Export to CSV or delete any time.
 - **Calendar (opt-in):** reads events from the macOS Calendar app to attribute loudness to meetings and people. Events are read on demand and never stored.
@@ -60,7 +60,8 @@ npm run smoke    # boots the real app with a fake microphone, walks through
 - `main.js` — main process: windows, menus, tray, updates, IPC
 - `src/preload.js` — the only bridge between windows and the main process
 - `src/index.html` + `renderer.js` — the floating meter
-- `src/onboarding.*`, `src/insights.*`, `src/settings.*` — welcome flow, history window, settings panel
+- `src/onboarding.*` — welcome flow
+- `src/panel.html` + `panel.css` — the one main window; `insights.js` owns navigation and the Day and Trends views, `settings.js` the Settings view
 - `src/main/` — settings and history stores (plain JSON files in the app's user-data folder), `analytics.js` (pure functions behind every Insights number) and `native.js` (bridge to the helper)
 - `native/sm-helper.swift` — small Swift binary for the two things Electron can't do: read the calendar (EventKit) and list apps using the microphone (CoreAudio). Build it with `npm run build:helper`; without it the app runs with those features hidden
 - `scripts/` — smoke test, asset generation (`npm run assets`), signing helpers
