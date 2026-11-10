@@ -6,7 +6,7 @@
 //   SMOKE_THEME=dark npm run smoke
 //
 // Loaded with `electron -r ./scripts/smoke.js .` so it runs before main.js.
-const { app, clipboard, dialog, ipcMain, nativeTheme, BrowserWindow, Menu, ShareMenu } = require('electron');
+const { app, clipboard, dialog, ipcMain, nativeTheme, shell, BrowserWindow, Menu, ShareMenu } = require('electron');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const os = require('os');
@@ -30,10 +30,13 @@ dialog.showMessageBox = async () => ({ response: 0 });
 
 // Things that would otherwise reach outside the test: record them instead of
 // popping up menus or overwriting the real clipboard.
-const outside = { menus: 0, copied: null, shared: 0 };
+const outside = { menus: 0, shared: 0, image: null, text: null, opened: [] };
 Menu.prototype.popup = function popup() { outside.menus += 1; };
 ShareMenu.prototype.popup = function popup() { outside.shared += 1; };
-clipboard.writeImage = (image) => { outside.copied = image.getSize(); };
+clipboard.writeImage = (image) => { outside.image = image.getSize(); };
+clipboard.writeText = (value) => { outside.text = value; };
+shell.openExternal = async (url) => { outside.opened.push(url); };
+dialog.showSaveDialog = async () => ({ canceled: false, filePath: path.join(profile, 'saved-card.png') });
 
 // The working day used for both the seeded history and the fake calendar:
 // [title, start, end, app in use, how animated it gets, attendees].
@@ -285,12 +288,12 @@ async function run() {
     await scrollTo('trend-meetings');
     await shoot(insights, '11-insights-trends-lists');
 
-    // Share: a card with the week's totals, copied or sent to the share sheet.
+    // Share: a card of the week's totals and a link that unfurls to it.
     await js(insights, `window.scrollTo(0, 0)`);
     await js(insights, `document.getElementById('share').click()`);
     await until(() => js(insights, `document.getElementById('share-dialog').open`), 'share dialog');
-    const card = await js(insights, `window.soundMeter.getTrends().then((t) => window.ShareCard.summarize(t))`);
-    if (!(card.calm >= 50 && card.calm <= 100) || card.stats.length !== 3) throw new Error(`Odd share card: ${JSON.stringify(card)}`);
+    const link = (await text('#share-url'))[0];
+    if (!/^shhh\.it\.com\/s\?c=\d+&l=\d+&m=\d+&s=\d+&a=\d+&d=\d&h=\d+$/.test(link)) throw new Error(`Odd share link: ${link}`);
     const painted = await js(insights, `(() => {
         const { data, width } = document.getElementById('share-canvas').getContext('2d').getImageData(0, 0, 1200, 630);
         const pixel = (x, y) => data.subarray((y * width + x) * 4, (y * width + x) * 4 + 4);
@@ -298,12 +301,31 @@ async function run() {
         return orb[3] === 255 && Math.abs(orb[0] - corner[0]) + Math.abs(orb[2] - corner[2]) > 40;
     })()`);
     if (!painted) throw new Error('Share card was not drawn');
-    await js(insights, `document.getElementById('share-copy').click()`);
-    await until(() => outside.copied, 'share card to be copied');
-    if (outside.copied.width !== 1200 || outside.copied.height !== 630) throw new Error('Copied card has the wrong size');
-    await until(() => visible('share-copied'), 'copied confirmation');
+
+    await js(insights, `document.getElementById('share-copy-link').click()`);
+    await until(() => outside.text === `https://${link}`, 'share link to be copied');
+    await until(async () => (await text('#share-status.show'))[0] === 'Link copied', 'copy confirmation');
     await shoot(insights, '12-insights-share');
-    await js(insights, `document.getElementById('share-menu').click()`);
+
+    await js(insights, `document.getElementById('share-copy-image').click()`);
+    await until(() => outside.image, 'share card to be copied');
+    if (outside.image.width !== 1200 || outside.image.height !== 630) throw new Error('Copied card has the wrong size');
+
+    await js(insights, `document.getElementById('share-save').click()`);
+    const savedCard = path.join(profile, 'saved-card.png');
+    await until(() => fs.existsSync(savedCard) && fs.readFileSync(savedCard).subarray(1, 4).toString() === 'PNG', 'card to be saved');
+
+    // Each "Post to" button opens that service's compose page with the link.
+    const chips = await js(insights, `[...document.querySelectorAll('#share-destinations [data-destination]')].map((c) => c.dataset.destination)`);
+    if (chips.join() !== 'x,linkedin,threads,bluesky,whatsapp,email') throw new Error(`Unexpected destinations: ${chips}`);
+    for (const key of chips) await js(insights, `document.querySelector('[data-destination="${key}"]').click()`);
+    await until(() => outside.opened.length === chips.length, 'compose pages to open');
+    const encoded = encodeURIComponent(`https://${link}`);
+    const stray = outside.opened.find((url) => !decodeURIComponent(url.replace(/\+/g, ' ')).includes(`https://${link}`));
+    if (stray) throw new Error(`Compose page without the link: ${stray} (${encoded})`);
+    if (!outside.opened[0].startsWith('https://x.com/intent/post?')) throw new Error(`Unexpected X url: ${outside.opened[0]}`);
+
+    await js(insights, `document.getElementById('share-more').click()`);
     await until(() => outside.shared === 1, 'share sheet');
     await js(insights, `document.getElementById('share-close').click()`);
     if (await js(insights, `document.getElementById('share-dialog').open`)) throw new Error('Share dialog did not close');
