@@ -49,6 +49,7 @@ let tray = null;
 let meterWindow = null;
 let insightsWindow = null;
 let onboardingWindow = null;
+let settingsWindow = null;
 let dragOrigin = null;
 let isQuitting = false;
 
@@ -82,6 +83,10 @@ function getState() {
         idle: runtime.idle,
         update: runtime.update,
         version: app.getVersion(),
+        packaged: app.isPackaged,
+        status: statusLabel(),
+        nativeAvailable: !!native && native.available,
+        callsSupported: runtime.micSupported || !runtime.micKnown,
         launchAtLogin: getLaunchAtLogin(),
         sensitivityOptions: CONSTANTS.SENSITIVITY_OPTIONS
     };
@@ -419,10 +424,64 @@ function nativeThemeBackground() {
 
 function syncDock() {
     if (!app.dock) return;
-    const hasPanel = [insightsWindow, onboardingWindow].some((w) => w && !w.isDestroyed());
+    const hasPanel = [insightsWindow, onboardingWindow, settingsWindow].some((w) => w && !w.isDestroyed());
     if (hasPanel) app.dock.show();
     else app.dock.hide();
 }
+
+const SETTINGS_SIZE = { width: 440, height: 720 };
+
+// Opens beside the orb, so you can watch it respond as you change things.
+function settingsPosition() {
+    const anchor = meterWindow && !meterWindow.isDestroyed() && meterWindow.isVisible()
+        ? meterWindow.getBounds()
+        : { ...defaultMeterPosition(), width: METER_SIZE, height: METER_SIZE };
+    const area = screen.getDisplayMatching(anchor).workArea;
+    const height = Math.min(SETTINGS_SIZE.height, area.height - 24);
+    const gap = 8;
+    const left = anchor.x - SETTINGS_SIZE.width - gap;
+    const x = left >= area.x ? left : Math.min(anchor.x + anchor.width + gap, area.x + area.width - SETTINGS_SIZE.width);
+    const y = Math.min(Math.max(anchor.y, area.y), area.y + area.height - height);
+    return { x: Math.round(Math.max(x, area.x)), y: Math.round(y), width: SETTINGS_SIZE.width, height };
+}
+
+function openSettings() {
+    if (settingsWindow) {
+        settingsWindow.show();
+        settingsWindow.focus();
+        return;
+    }
+    settingsWindow = createPanelWindow('src/settings.html', {
+        ...settingsPosition(),
+        minWidth: SETTINGS_SIZE.width,
+        maxWidth: SETTINGS_SIZE.width,
+        minHeight: 420,
+        maximizable: false,
+        title: 'Sound Meter Settings'
+    });
+    settingsWindow.on('closed', () => {
+        settingsWindow = null;
+    });
+}
+
+function resetMeterPosition() {
+    updateSettings({ position: null });
+    const win = createMeterWindow();
+    const { x, y } = defaultMeterPosition();
+    win.setPosition(x, y);
+}
+
+// What the Settings panel can ask for beyond changing a setting.
+const SETTINGS_ACTIONS = {
+    'relearn': () => recalibrate(),
+    'reset-position': () => resetMeterPosition(),
+    'launch-at-login': (value) => setLaunchAtLogin(value === true),
+    'open-insights': () => openInsights(),
+    'check-updates': () => checkForUpdates(true),
+    'restart-to-update': () => { if (autoUpdater && runtime.update.status === 'ready') autoUpdater.quitAndInstall(); },
+    'close': () => { if (settingsWindow) settingsWindow.close(); },
+    'quit': () => app.quit()
+};
 
 function openInsights({ share = false } = {}) {
     if (insightsWindow) {
@@ -544,6 +603,7 @@ function buildMenuTemplate({ forTray = false } = {}) {
 
     template.push(
         { type: 'separator' },
+        { label: 'Settings…', accelerator: 'Command+,', click: openSettings },
         {
             label: paused ? 'Resume Listening' : 'Pause Listening',
             click: () => updateSettings({ paused: !paused })
@@ -597,15 +657,7 @@ function buildMenuTemplate({ forTray = false } = {}) {
                 choice('Opacity', 'orbOpacity', ORB_OPACITIES),
                 toggle('Show Level Symbols', 'symbols', { toolTip: 'Arrows in the orb as it gets louder, for when colour alone is hard to read' }),
                 { type: 'separator' },
-                {
-                    label: 'Reset Position',
-                    click: () => {
-                        updateSettings({ position: null });
-                        const win = createMeterWindow();
-                        const { x, y } = defaultMeterPosition();
-                        win.setPosition(x, y);
-                    }
-                }
+                { label: 'Reset Position', click: resetMeterPosition }
             ]
         },
         {
@@ -773,6 +825,14 @@ function registerIpc() {
         if (insightsWindow && !insightsWindow.isDestroyed()) {
             insightsWindow.webContents.send('history:sample', sample);
         }
+    });
+
+    ipcMain.on('settings:open', openSettings);
+    ipcMain.handle('settings:action', (_event, name, value) => {
+        const action = Object.prototype.hasOwnProperty.call(SETTINGS_ACTIONS, name) ? SETTINGS_ACTIONS[name] : null;
+        if (!action) return false;
+        action(value);
+        return true;
     });
 
     ipcMain.on('meter:menu', () => {

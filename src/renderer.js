@@ -293,7 +293,7 @@
         stage.classList.remove('dragging');
         if (orb.hasPointerCapture(event.pointerId)) orb.releasePointerCapture(event.pointerId);
         api.dragEnd();
-        if (wasClick && event.type === 'pointerup') api.openMenu();
+        if (wasClick && event.type === 'pointerup') api.openSettings();
     }
 
     orb.addEventListener('pointerup', endDrag);
@@ -302,9 +302,9 @@
         event.preventDefault();
         api.openMenu();
     });
-    options.addEventListener('click', () => api.openMenu());
+    options.addEventListener('click', () => api.openSettings());
     orb.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') api.openMenu();
+        if (event.key === 'Enter' || event.key === ' ') api.openSettings();
     });
 
     /* -------------------------------------------------------------- boot */
@@ -341,7 +341,7 @@
         setTimeout(() => {
             if (stage.dataset.state !== 'listening') return;
             const learning = state.settings.sensitivityMode === 'auto' && !state.settings.calibrated;
-            flashNotice(learning ? 'Learning your voice…' : 'Click the orb for options', 8000);
+            flashNotice(learning ? 'Learning your voice…' : 'Click the orb for settings', 8000);
         }, 900);
     });
 })();
