@@ -233,8 +233,65 @@ async function run() {
     })()`);
     if (clipped.length) throw new Error(`Shadow would be cut off by the window edge: ${clipped}`);
     await shoot(meter, '6b-meter-hover');
+    // Clicking it opens Settings, which stays open while several things are
+    // changed, each applying to the orb straight away.
     await js(meter, `document.getElementById('options').click()`);
-    await until(() => outside.menus === 1, 'Options button to open the menu');
+    const panel = await until(() => find('settings.html'), 'settings panel');
+    await until(() => js(panel, `document.querySelectorAll('#sensitivity button').length === 6`), 'settings to load');
+    if (outside.menus !== 0) throw new Error('Clicking the orb should open Settings, not the menu');
+    const orbStyle = () => js(meter, `(() => {
+        const orb = getComputedStyle(document.getElementById('orb'));
+        return { width: orb.width, opacity: orb.opacity, symbols: document.getElementById('stage').classList.contains('symbols') };
+    })()`);
+    const press = (selector) => js(panel, `document.querySelector(${JSON.stringify(selector)}).click()`);
+
+    await press('[data-choice="orbSize"] [data-value="large"]');
+    await until(async () => (await orbStyle()).width === '76px', 'size to apply live');
+    await press('[data-choice="orbOpacity"] [data-value="0.5"]');
+    await until(async () => (await orbStyle()).opacity === '0.5', 'opacity to apply live');
+    await press('input[data-setting="symbols"]');
+    await until(async () => (await orbStyle()).symbols, 'symbols to apply live');
+    await press('#sensitivity [data-value="70"]');
+    await press('input[data-setting="nudge"]');
+    const chosen = await until(() => js(panel, `window.soundMeter.getState().then((s) =>
+        s.settings.sensitivity === 70 && s.settings.sensitivityMode === 'manual' && s.settings.nudge && s.settings)`), 'settings to save');
+    if (chosen.orbSize !== 'large' || chosen.orbOpacity !== 0.5 || !chosen.symbols) throw new Error('Earlier changes were lost');
+    if (!find('settings.html')) throw new Error('Settings must stay open while you change things');
+    // The panel reflects reality: its controls follow the saved state.
+    const shown = await js(panel, `({
+        size: document.querySelector('[data-choice="orbSize"] [aria-pressed="true"]').dataset.value,
+        level: document.querySelector('#sensitivity [aria-pressed="true"]').textContent,
+        hint: document.getElementById('sensitivity-hint').textContent,
+        nudge: document.querySelector('input[data-setting="nudge"]').checked,
+        status: document.getElementById('status-text').textContent,
+        saved: document.getElementById('saved').classList.contains('show')
+    })`);
+    if (shown.size !== 'large' || shown.level !== 'High' || !shown.nudge || !shown.saved || !shown.status.startsWith('Listening')) {
+        throw new Error(`Settings panel out of step: ${JSON.stringify(shown)}`);
+    }
+    await wait(300);
+    await shoot(panel, '6d-settings');
+    await js(panel, `window.scrollTo(0, document.body.scrollHeight)`);
+    await shoot(panel, '6e-settings-bottom');
+
+    // Pause from the panel, then put everything back the way it was.
+    await press('#pause');
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'paused'`), 'pause from settings');
+    if (await js(panel, `document.getElementById('pause').textContent`) !== 'Resume') throw new Error('Pause button should offer Resume');
+    await press('#pause');
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'resume from settings');
+    await press('[data-choice="orbSize"] [data-value="medium"]');
+    await press('[data-choice="orbOpacity"] [data-value="1"]');
+    await press('input[data-setting="symbols"]');
+    await press('input[data-setting="nudge"]');
+    await press('#sensitivity [data-value="210"]');
+    await until(() => js(panel, `window.soundMeter.getState().then((s) => s.settings.sensitivity === 210 && !s.settings.nudge && !s.settings.symbols)`), 'settings restored');
+    await js(panel, `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+    await until(() => !find('settings.html'), 'Escape to close settings');
+
+    // Right-click keeps the quick menu.
+    await js(meter, `document.getElementById('orb').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))`);
+    await until(() => outside.menus === 1, 'right-click to open the menu');
     await js(meter, `document.dispatchEvent(new MouseEvent('mouseleave'))`);
     await until(() => js(meter, `!document.getElementById('stage').classList.contains('hover')`), 'hover to end');
 

@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('soundMeter', {
     getState: () => ipcRenderer.invoke('state:get'),
     onState: (callback) => subscribe('state:changed', callback),
     updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
+    openSettings: () => ipcRenderer.send('settings:open'),
+    settingsAction: (name, value) => ipcRenderer.invoke('settings:action', name, value),
 
     // Floating meter.
     reportDevices: (devices) => ipcRenderer.send('meter:devices', devices),
