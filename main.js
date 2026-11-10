@@ -12,6 +12,7 @@ const { prepareShare, destinationUrl } = require('./src/main/share');
 const { createCalibrator } = require('./src/main/calibration');
 const { createNudger, recapDue } = require('./src/main/reminders');
 const { createPresence } = require('./src/main/presence');
+const { describeUpdateError } = require('./src/main/update-errors');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 const METER_SIZE = 168;
@@ -713,7 +714,7 @@ function initAutoUpdater() {
                 dialog.showMessageBox({
                     type: 'warning',
                     message: 'Couldn’t check for updates',
-                    detail: 'Please check your internet connection and try again.'
+                    detail: describeUpdateError(error)
                 });
             }
             manualUpdateCheck = false;
