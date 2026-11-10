@@ -27,3 +27,6 @@ dist
 *.certSigningRequest
 temp*
 certificate*
+
+# Smoke-test screenshots
+shots

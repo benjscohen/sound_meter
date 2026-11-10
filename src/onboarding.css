@@ -1,0 +1,246 @@
+body {
+    overflow: hidden;
+    background:
+        radial-gradient(120% 60% at 50% 0%, rgb(var(--orb-green) / 0.14), transparent 70%),
+        var(--bg);
+}
+
+#wizard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 44px 44px 28px;
+}
+
+/* --- Orb preview ------------------------------------------------------- */
+
+.hero {
+    position: relative;
+    flex: none;
+    height: 230px;
+    display: grid;
+    place-items: center;
+}
+
+.halo {
+    position: absolute;
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: radial-gradient(circle, var(--surface) 0%, transparent 70%);
+    box-shadow: 0 0 0 26px rgb(127 140 160 / 0.05), 0 0 0 54px rgb(127 140 160 / 0.035);
+}
+
+.hero .orb {
+    position: relative;
+}
+
+.zone {
+    position: absolute;
+    bottom: 0;
+    min-height: 24px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+#wizard[data-step="2"] .zone:not(:empty) {
+    opacity: 1;
+}
+
+/* --- Steps ------------------------------------------------------------- */
+
+.steps {
+    position: relative;
+    flex: 1;
+    margin-top: 22px;
+}
+
+.step {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(24px);
+    transition: opacity 0.3s var(--ease), transform 0.35s var(--ease), visibility 0s 0.3s;
+}
+
+.step.active {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0.05s, 0.05s, 0s;
+}
+
+.step.past {
+    transform: translateX(-24px);
+}
+
+h1 {
+    font-size: 25px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.step > p {
+    max-width: 400px;
+    color: var(--ink-2);
+    font-size: 14.5px;
+    line-height: 1.55;
+}
+
+.step .hint {
+    min-height: 20px;
+    margin-top: -4px;
+    color: var(--ink-3);
+    font-size: 12.5px;
+}
+
+.step .segmented {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    max-width: 400px;
+    margin-top: 4px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--amber-soft);
+    color: var(--ink);
+    font-size: 12.5px;
+    line-height: 1.45;
+    text-align: left;
+}
+
+.callout[hidden] {
+    display: none;
+}
+
+.callout.ok {
+    background: var(--green-soft);
+}
+
+.callout .icon-ok,
+.callout.ok .icon-warn {
+    display: none;
+}
+
+.callout.ok .icon-ok {
+    display: block;
+    color: var(--green);
+}
+
+.callout svg,
+.tips svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.tips {
+    width: 100%;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    text-align: left;
+}
+
+.tips li {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    color: var(--ink-2);
+    font-size: 13.5px;
+}
+
+.tips svg {
+    margin-top: 1px;
+    color: var(--green);
+}
+
+.tips b,
+.toggle-row b {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.toggle-row {
+    width: 100%;
+    margin-top: 6px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    text-align: left;
+    box-shadow: var(--shadow-sm);
+}
+
+.toggle-row small {
+    display: block;
+    color: var(--ink-3);
+    font-size: 12px;
+}
+
+/* --- Footer ------------------------------------------------------------ */
+
+footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+}
+
+.dots {
+    display: flex;
+    gap: 6px;
+}
+
+.dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    transition: width 0.3s var(--ease), background 0.3s;
+}
+
+.dots i.on {
+    width: 18px;
+    background: var(--ink);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn.primary {
+    min-width: 132px;
+}

@@ -1,0 +1,42 @@
+// Bridge between the sandboxed windows and the main process. Renderers get
+// this narrow API and nothing else - no Node, no direct IPC.
+const { contextBridge, ipcRenderer } = require('electron');
+
+function subscribe(channel, callback) {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+}
+
+contextBridge.exposeInMainWorld('soundMeter', {
+    // Shared state: settings, mic status, version, update status.
+    getState: () => ipcRenderer.invoke('state:get'),
+    onState: (callback) => subscribe('state:changed', callback),
+    updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
+
+    // Floating meter.
+    reportDevices: (devices) => ipcRenderer.send('meter:devices', devices),
+    reportMicStatus: (status) => ipcRenderer.send('meter:mic-status', status),
+    sendSample: (sample) => ipcRenderer.send('meter:sample', sample),
+    openMenu: () => ipcRenderer.send('meter:menu'),
+    setIgnoreMouse: (ignore) => ipcRenderer.send('meter:ignore-mouse', ignore),
+    dragStart: () => ipcRenderer.send('meter:drag-start'),
+    dragMove: (dx, dy) => ipcRenderer.send('meter:drag-move', dx, dy),
+    dragEnd: () => ipcRenderer.send('meter:drag-end'),
+
+    // Microphone permission.
+    micAccess: () => ipcRenderer.invoke('mic:status'),
+    requestMicAccess: () => ipcRenderer.invoke('mic:request'),
+    openMicSettings: () => ipcRenderer.send('mic:open-settings'),
+
+    // Onboarding.
+    finishOnboarding: (options) => ipcRenderer.invoke('onboarding:finish', options),
+
+    // Insights.
+    openInsights: () => ipcRenderer.send('insights:open'),
+    listDays: (limit) => ipcRenderer.invoke('history:days', limit),
+    getDay: (date) => ipcRenderer.invoke('history:day', date),
+    exportHistory: () => ipcRenderer.invoke('history:export'),
+    clearHistory: () => ipcRenderer.invoke('history:clear'),
+    onSample: (callback) => subscribe('history:sample', callback)
+});

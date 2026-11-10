@@ -1,0 +1,416 @@
+body {
+    overflow-y: auto;
+}
+
+.page {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 52px 32px 36px;
+}
+
+.top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+.sub {
+    margin-top: 2px;
+    color: var(--ink-3);
+    font-size: 13px;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.live {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-right: 6px;
+    color: var(--ink-2);
+    font-size: 12.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.live[hidden] {
+    display: none;
+}
+
+.live i {
+    --c: var(--orb-green);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgb(var(--c));
+    box-shadow: 0 0 0 3px rgb(var(--c) / 0.2);
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+/* --- Metrics ----------------------------------------------------------- */
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.metric {
+    padding: 16px 18px 15px;
+}
+
+.metric h3 {
+    color: var(--ink-2);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.metric .value {
+    margin-top: 6px;
+    font-size: 27px;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.metric .value small {
+    margin-left: 2px;
+    color: var(--ink-3);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.metric .note {
+    min-height: 18px;
+    margin-top: 4px;
+    color: var(--ink-3);
+    font-size: 12px;
+}
+
+.note .up,
+.note .down {
+    display: inline-block;
+    margin-right: 5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* For loudness, down is the good direction. */
+.note .down {
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.note .up {
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+/* --- Panels ------------------------------------------------------------ */
+
+.panel {
+    margin-bottom: 14px;
+    padding: 18px 20px 16px;
+}
+
+.panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.legend {
+    display: flex;
+    gap: 14px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--ink-2);
+    font-size: 12px;
+}
+
+.legend li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend i {
+    width: 14px;
+    height: 0;
+    border-top: 2.5px solid var(--green);
+    border-radius: 2px;
+}
+
+.legend .k-peak {
+    border-top: 1.5px solid var(--ink-3);
+    opacity: 0.7;
+}
+
+.legend .k-loud {
+    border-top: 1.5px dashed var(--red);
+}
+
+.chart {
+    position: relative;
+    height: 250px;
+}
+
+#chart-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+#chart-svg text {
+    fill: var(--ink-3);
+    font: 11px var(--font);
+    font-variant-numeric: tabular-nums;
+}
+
+#chart-svg .grid {
+    stroke: var(--line);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+#chart-svg .threshold {
+    stroke: var(--red);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    opacity: 0.75;
+}
+
+#chart-svg .threshold-label {
+    fill: var(--red);
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+}
+
+#chart-svg .peak {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 1;
+    opacity: 0.55;
+}
+
+#chart-svg .avg {
+    fill: none;
+    stroke: url(#level-stroke);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+#chart-svg .area {
+    fill: url(#level-fill);
+}
+
+#chart-svg .cursor {
+    stroke: var(--ink-3);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+#chart-svg .dot {
+    fill: var(--surface);
+    stroke: var(--ink);
+    stroke-width: 2;
+}
+
+.tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    min-width: 136px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    font-size: 12px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.tooltip b {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12.5px;
+}
+
+.tooltip div {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.tooltip div span:last-child {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* --- Day strip --------------------------------------------------------- */
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    gap: 6px;
+    height: 132px;
+}
+
+.day {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 2px 7px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink-3);
+    font: 500 11px/1.2 var(--font);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.day:not(:disabled):hover {
+    background: var(--surface-2);
+}
+
+.day[aria-selected="true"] {
+    background: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink);
+}
+
+.day:focus-visible {
+    outline: 3px solid var(--focus);
+}
+
+.day .count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.day .track {
+    flex: 1;
+    width: 100%;
+    max-width: 26px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.day .bar {
+    width: 100%;
+    min-height: 3px;
+    border-radius: 5px;
+    background: rgb(var(--orb-green));
+    transition: height 0.4s var(--ease);
+}
+
+.day .bar.some {
+    background: rgb(var(--orb-amber));
+}
+
+.day .bar.lots {
+    background: rgb(var(--orb-red));
+}
+
+.day:disabled .bar {
+    background: var(--line);
+}
+
+.day .label {
+    white-space: nowrap;
+}
+
+/* --- Empty state ------------------------------------------------------- */
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 64px 32px 56px;
+    text-align: center;
+}
+
+.empty[hidden],
+#content[hidden] {
+    display: none;
+}
+
+.empty .orb {
+    margin-bottom: 18px;
+    animation: float 3.6s ease-in-out infinite;
+}
+
+.empty h2 {
+    font-size: 20px;
+    letter-spacing: -0.015em;
+}
+
+.empty p {
+    max-width: 440px;
+    color: var(--ink-2);
+}
+
+.empty .fine {
+    margin-top: 6px;
+    color: var(--ink-3);
+    font-size: 12.5px;
+}
+
+@keyframes float {
+    50% {
+        transform: translateY(-6px) scale(1.06);
+    }
+}
+
+@media (max-width: 860px) {
+    .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .legend {
+        display: none;
+    }
+}

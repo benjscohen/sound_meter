@@ -1,7 +1,7 @@
 {
   "name": "sound_meter",
-  "version": "1.0.19",
-  "description": "",
+  "version": "1.1.0",
+  "description": "A floating orb for your Mac that shows when you are getting loud.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/benjscohen/sound_meter.git"
@@ -10,7 +10,9 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "test": "jest"
+    "test": "jest",
+    "smoke": "electron -r ./scripts/smoke.js .",
+    "assets": "node scripts/make-tray-icon.js && electron scripts/render-assets.js"
   },
   "build": {
     "publish": {
@@ -21,8 +23,18 @@
     "productName": "Sound Meter",
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
       "icon": "sound_meter.icns",
       "identity": "PRM Solutions, Inc",
@@ -31,32 +43,45 @@
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "This app needs access to the microphone to measure sound levels. No audio is recorded or transmitted."
-      }
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone to measure sound levels. No audio is recorded or transmitted.",
+        "LSUIElement": false
+      },
+      "category": "public.app-category.productivity",
+      "artifactName": "Sound-Meter-${version}.${ext}"
     },
     "afterSign": "scripts/notarize.js",
     "dmg": {
+      "title": "Install Sound Meter",
+      "background": "assets/dmg/background.png",
+      "iconSize": 112,
+      "window": {
+        "width": 660,
+        "height": 420
+      },
       "contents": [
         {
-          "x": 130,
-          "y": 220
+          "x": 180,
+          "y": 215
         },
         {
-          "x": 410,
-          "y": 220,
+          "x": 480,
+          "y": 215,
           "type": "link",
           "path": "/Applications"
         }
-      ],
-      "window": {
-        "width": 540,
-        "height": 380
-      }
-    }
+      ]
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "assets/trayTemplate*.png",
+      "package.json",
+      "!src/**/*.test.js"
+    ]
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Benj Cohen",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
@@ -68,5 +93,12 @@
   "dependencies": {
     "electron-log": "^5.1.0",
     "electron-updater": "^6.1.8"
+  },
+  "jest": {
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testEnvironment": "node",
+    "watchman": false
   }
 }

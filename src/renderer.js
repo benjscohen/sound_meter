@@ -1,163 +1,275 @@
-// Renderer process
-const { ipcRenderer } = require('electron');
-const { calculateSize, calculateColor, CONSTANTS } = require('./utils/audio-visualizer');
+// Floating meter window. Listens to the microphone, drives the orb, and
+// reports one loudness sample per second to the main process.
+(() => {
+    const api = window.soundMeter;
+    const V = window.AudioVisualizer;
+    const { ZONE_LABELS } = V.CONSTANTS;
 
-const meterCircle = document.getElementById('meter-circle');
-const micSelect = document.getElementById('mic-select');
-const sensitivitySelect = document.getElementById('sensitivity-select');
-const controls = document.getElementById('controls');
-const appContainer = document.getElementById('app-container');
+    const stage = document.getElementById('stage');
+    const orb = document.getElementById('orb');
+    const pill = document.getElementById('pill');
 
-let hideTimeout;
+    const MAX_SCALE_GAIN = 1.3;      // Orb grows from 60px to ~138px
+    const ALERT_AFTER_MS = 1500;     // Sustained loudness before the ripple
+    const DRAG_THRESHOLD = 4;        // Pixels of movement that turn a click into a drag
+    const RETRY_MS = 4000;
 
-function scheduleHide(delay = 3000) {
-    if (hideTimeout) clearTimeout(hideTimeout);
-    controls.classList.add('visible');
-    hideTimeout = setTimeout(() => {
-        controls.classList.remove('visible');
-    }, delay);
-}
+    let state = null;
+    let stream = null;
+    let audioContext = null;
+    let analyser = null;
+    let data = null;
+    let activeKey = null;            // What the current stream was opened for
+    let starting = false;
+    let restart = false;             // Settings changed while a start was in flight
+    let level = 0;
+    let loudSince = 0;
+    let second = { sum: 0, n: 0, peak: 0, startedAt: 0 };
+    let noticeTimer = null;
 
-// Show on hover/move and reset timer
-const onActivity = () => scheduleHide(3000);
-appContainer.addEventListener('mouseenter', onActivity);
-appContainer.addEventListener('mousemove', onActivity);
+    /* ------------------------------------------------------------ status */
 
-// Hide quickly when leaving or selecting
-appContainer.addEventListener('mouseleave', () => scheduleHide(500));
+    function setMode(mode, message) {
+        stage.dataset.state = mode;
+        if (mode !== 'listening') {
+            stage.classList.remove('alert');
+            orb.style.removeProperty('--s');
+            orb.style.removeProperty('--c');
+        }
+        if (message) pill.textContent = message;
+        // Problems stay visible; normal states only show the pill on hover.
+        stage.classList.toggle('notice', mode === 'denied' || mode === 'no-device');
+        const status = mode === 'denied' || mode === 'no-device' ? mode : mode === 'listening' ? 'granted' : null;
+        if (status) api.reportMicStatus(status);
+    }
 
-micSelect.addEventListener('change', (e) => {
-    startListening(e.target.value);
-    scheduleHide(500);
-});
+    function flashNotice(message, ms = 4500) {
+        pill.textContent = message;
+        stage.classList.add('notice');
+        clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(() => {
+            if (stage.dataset.state === 'listening' || stage.dataset.state === 'paused') {
+                stage.classList.remove('notice');
+            }
+        }, ms);
+    }
 
-sensitivitySelect.addEventListener('change', (e) => {
-    currentSensitivity = parseInt(e.target.value);
-    scheduleHide(500);
-});
+    /* ------------------------------------------------------------- audio */
 
-let audioContext;
-let analyser;
-let microphone;
-let dataArray;
-let currentSensitivity = CONSTANTS.SENSITIVITY_PRESETS.MEDIUM;
+    function stop() {
+        if (stream) stream.getTracks().forEach((track) => track.stop());
+        if (audioContext) audioContext.close().catch(() => {});
+        stream = null;
+        audioContext = null;
+        analyser = null;
+        level = 0;
+    }
 
-function initSensitivity() {
-    const presets = CONSTANTS.SENSITIVITY_PRESETS;
-    // Order: High (sensitive), Medium, Low (needs loud sound)
-    const options = [
-        { label: 'High Sensitivity', value: presets.HIGH },
-        { label: 'Medium Sensitivity', value: presets.MEDIUM },
-        { label: 'Low Sensitivity', value: presets.LOW },
-        { label: 'Very Low Sensitivity', value: presets.VERY_LOW },
-        { label: 'Ultra Low Sensitivity', value: presets.ULTRA_LOW }
-    ];
-
-    sensitivitySelect.innerHTML = '';
-    options.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.text = opt.label;
-        if (opt.value === currentSensitivity) option.selected = true;
-        sensitivitySelect.appendChild(option);
-    });
-}
-
-async function getMicrophones() {
-    const currentDeviceId = micSelect.value;
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioDevices = devices.filter(device => device.kind === 'audioinput');
-
-    // Check if list actually changed to avoid unnecessary DOM updates
-    const currentOptions = Array.from(micSelect.options).map(o => o.value);
-    const newDeviceIds = audioDevices.map(d => d.deviceId);
-    const hasChanged = currentOptions.length !== newDeviceIds.length ||
-        !currentOptions.every((val, index) => val === newDeviceIds[index]);
-
-    if (!hasChanged && micSelect.options.length > 0) return;
-
-    micSelect.innerHTML = '';
-    audioDevices.forEach(device => {
-        const option = document.createElement('option');
-        option.value = device.deviceId;
-        option.text = device.label || `Microphone ${micSelect.length + 1}`;
-        micSelect.appendChild(option);
-    });
-
-    // Restore selection
-    if (currentDeviceId && audioDevices.some(d => d.deviceId === currentDeviceId)) {
-        micSelect.value = currentDeviceId;
-    } else if (audioDevices.length > 0) {
-        // Default to first if previous selection is gone or nothing selected
-        micSelect.value = audioDevices[0].deviceId;
-        // Only restart if we actually switched devices (and not just on initial load)
-        if (currentDeviceId) {
-            startListening(micSelect.value);
+    async function refreshDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const inputs = devices
+                .filter((d) => d.kind === 'audioinput' && d.deviceId)
+                .map((d, i) => ({ id: d.deviceId, label: d.label || `Microphone ${i + 1}` }));
+            api.reportDevices(inputs);
+            return inputs;
+        } catch {
+            return [];
         }
     }
-}
 
-// Update list when devices are connected/disconnected
-navigator.mediaDevices.ondevicechange = getMicrophones;
-
-// Also check when user interacts with the control
-micSelect.addEventListener('mouseenter', getMicrophones);
-
-async function startListening(deviceId) {
-    if (audioContext) {
-        audioContext.close();
-    }
-
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                deviceId: deviceId ? { exact: deviceId } : undefined
-            }
+    async function open(deviceId) {
+        return navigator.mediaDevices.getUserMedia({
+            audio: deviceId ? { deviceId: { exact: deviceId } } : true
         });
-
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-
-        microphone = audioContext.createMediaStreamSource(stream);
-        microphone.connect(analyser);
-
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        updateMeter();
-    } catch (err) {
-        console.error('Error accessing microphone:', err);
     }
-}
 
-function updateMeter() {
-    if (!analyser) return;
+    async function start() {
+        if (starting) {
+            restart = true;
+            return;
+        }
+        starting = true;
+        const { deviceId, paused } = state.settings;
+        const key = `${deviceId || 'default'}|${paused}`;
 
-    analyser.getByteFrequencyData(dataArray);
+        try {
+            stop();
+            activeKey = key;
 
-    // Calculate average volume
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i];
+            if (paused) {
+                setMode('paused', 'Paused');
+                return;
+            }
+
+            if (stage.dataset.state !== 'denied' && stage.dataset.state !== 'no-device') setMode('starting');
+
+            let next;
+            try {
+                next = await open(deviceId);
+            } catch (error) {
+                // The saved microphone was unplugged: fall back to the default.
+                if (deviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+                    next = await open(null);
+                    api.updateSettings({ deviceId: null });
+                } else {
+                    throw error;
+                }
+            }
+
+            stream = next;
+            audioContext = new AudioContext();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            audioContext.createMediaStreamSource(stream).connect(analyser);
+            data = new Uint8Array(analyser.frequencyBinCount);
+            second = { sum: 0, n: 0, peak: 0, startedAt: performance.now() };
+
+            setMode('listening');
+
+            const track = stream.getAudioTracks()[0];
+            const label = track ? track.label.replace(/^Default - /, '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)$/i, '') : null;
+            if (label && label !== state.settings.deviceLabel) api.updateSettings({ deviceLabel: label });
+            refreshDevices();
+        } catch (error) {
+            stop();
+            activeKey = null;
+            if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+                setMode('denied', 'Allow microphone access');
+            } else {
+                setMode('no-device', 'No microphone found');
+            }
+        } finally {
+            starting = false;
+            if (restart) {
+                restart = false;
+                start();
+            }
+        }
     }
-    const average = sum / dataArray.length;
 
-    // Calculate visual properties using the utility module
-    const size = calculateSize(average, currentSensitivity);
-    const { r, g, b } = calculateColor(average, currentSensitivity);
+    function frame(now) {
+        requestAnimationFrame(frame);
+        if (!analyser || stage.dataset.state !== 'listening') return;
 
-    meterCircle.style.width = `${size}px`;
-    meterCircle.style.height = `${size}px`;
-    meterCircle.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
-    meterCircle.style.boxShadow = `0 0 ${20 + (average / 3)}px rgba(${r}, ${g}, ${b}, 0.5)`;
+        analyser.getByteFrequencyData(data);
+        const raw = V.averageLevel(data);
+        const sensitivity = state.settings.sensitivity;
 
-    requestAnimationFrame(updateMeter);
-}
+        level = V.smoothLevel(level, raw);
+        const ratio = V.levelRatio(level, sensitivity);
+        const shown = Math.min(ratio, 1);
+        const { r, g, b } = V.colorForRatio(shown);
+        orb.style.setProperty('--s', (1 + shown * MAX_SCALE_GAIN).toFixed(3));
+        orb.style.setProperty('--c', `${r} ${g} ${b}`);
 
-// Initialize
-initSensitivity();
-getMicrophones().then(() => {
-    startListening();
-    // Show controls on start so user knows they are there
-    scheduleHide(4000);
-});
+        const zone = V.zoneForRatio(ratio);
+        if (zone === 'loud') {
+            if (!loudSince) loudSince = now;
+            stage.classList.toggle('alert', now - loudSince > ALERT_AFTER_MS);
+        } else {
+            loudSince = 0;
+            stage.classList.remove('alert');
+        }
+        if (!stage.classList.contains('notice')) pill.textContent = ZONE_LABELS[zone];
+
+        // History gets the unsmoothed truth, once a second.
+        const rawRatio = V.levelRatio(raw, sensitivity);
+        second.sum += rawRatio;
+        second.n += 1;
+        second.peak = Math.max(second.peak, rawRatio);
+        if (now - second.startedAt >= 1000) {
+            api.sendSample({ avg: second.sum / second.n, peak: second.peak });
+            second = { sum: 0, n: 0, peak: 0, startedAt: now };
+        }
+    }
+
+    /* ------------------------------------------------------- interaction */
+
+    let hovering = false;
+    let drag = null;
+
+    function setHover(over) {
+        if (drag || over === hovering) return;
+        hovering = over;
+        stage.classList.toggle('hover', over);
+        api.setIgnoreMouse(!over);
+    }
+
+    // The window ignores the mouse (so clicks reach whatever is underneath)
+    // except while the pointer is actually over the orb.
+    window.addEventListener('mousemove', (event) => {
+        setHover(!!(event.target instanceof Element && event.target.closest('.hit')));
+    });
+    document.addEventListener('mouseleave', () => setHover(false));
+
+    orb.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        orb.setPointerCapture(event.pointerId);
+        drag = { x: event.screenX, y: event.screenY, moved: false };
+        api.dragStart();
+    });
+
+    orb.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const dx = event.screenX - drag.x;
+        const dy = event.screenY - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        api.dragMove(dx, dy);
+    });
+
+    function endDrag(event) {
+        if (!drag) return;
+        const wasClick = !drag.moved;
+        drag = null;
+        if (orb.hasPointerCapture(event.pointerId)) orb.releasePointerCapture(event.pointerId);
+        api.dragEnd();
+        if (wasClick && event.type === 'pointerup') api.openMenu();
+    }
+
+    orb.addEventListener('pointerup', endDrag);
+    orb.addEventListener('pointercancel', endDrag);
+    orb.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        api.openMenu();
+    });
+    orb.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') api.openMenu();
+    });
+
+    /* -------------------------------------------------------------- boot */
+
+    function onState(next) {
+        const first = !state;
+        state = next;
+        const key = `${state.settings.deviceId || 'default'}|${state.settings.paused}`;
+        if (first || key !== activeKey) start();
+    }
+
+    navigator.mediaDevices.addEventListener('devicechange', async () => {
+        const inputs = await refreshDevices();
+        const wanted = state && state.settings.deviceId;
+        const lost = wanted && !inputs.some((d) => d.id === wanted);
+        if (lost || stage.dataset.state === 'no-device') {
+            activeKey = null;
+            start();
+        }
+    });
+
+    // If access was denied, keep quietly retrying so the orb comes alive the
+    // moment the user flips the switch in System Settings.
+    setInterval(() => {
+        const mode = stage.dataset.state;
+        if (state && !state.settings.paused && (mode === 'denied' || mode === 'no-device')) start();
+    }, RETRY_MS);
+
+    api.onState(onState);
+    api.getState().then((initial) => {
+        onState(initial);
+        requestAnimationFrame(frame);
+        setTimeout(() => {
+            if (stage.dataset.state === 'listening') flashNotice('Click for options');
+        }, 900);
+    });
+})();

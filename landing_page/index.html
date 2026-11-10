@@ -3,87 +3,404 @@
 
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/assets/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shhh.it - Know when you're yelling</title>
+    <title>Shhh.it — Know when you’re getting loud</title>
     <meta name="description"
-        content="A beautiful, minimalist sound meter for your Mac. Know when you're yelling without knowing it.">
+        content="A tiny floating sound meter for your Mac. It glows green while you speak comfortably and warms to red when you get loud. Free, private, open source.">
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0e12" media="(prefers-color-scheme: dark)">
+    <link rel="canonical" href="https://shhh.it.com/">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://shhh.it.com/">
+    <meta property="og:title" content="Shhh.it — Know when you’re getting loud">
+    <meta property="og:description"
+        content="A tiny floating sound meter for your Mac. Free, private, open source.">
+    <meta property="og:image" content="https://shhh.it.com/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
-    <div class="background-gradient"></div>
+    <a class="skip" href="#main">Skip to content</a>
 
-    <nav>
-        <div class="nav-content">
-            <div class="logo">
-                <img src="./assets/favicon.png" alt="Shhh.it Logo">
+    <header class="nav" id="nav">
+        <div class="wrap nav-inner">
+            <a class="logo" href="#top" aria-label="Shhh.it home">
+                <span class="orb orb-xs" aria-hidden="true"></span>
                 <span>Shhh.it</span>
-            </div>
-            <div class="nav-links">
-                <a href="https://github.com/benjscohen/sound_meter" class="nav-link" target="_blank">Open Source</a>
-                <a href="https://github.com/benjscohen/sound_meter/releases/latest" class="btn-sm"
-                    id="nav-download-btn">Download</a>
-            </div>
+            </a>
+            <nav class="nav-links" aria-label="Primary">
+                <a href="#how">How it works</a>
+                <a href="#install">Install</a>
+                <a href="#faq">FAQ</a>
+                <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">GitHub</a>
+            </nav>
+            <a class="btn btn-dark btn-sm" data-download
+                href="https://github.com/benjscohen/sound_meter/releases/latest">Download</a>
         </div>
-    </nav>
+    </header>
 
-    <main>
-        <section class="hero">
-            <div class="hero-content">
-                <h1>Know when you're yelling.</h1>
-                <p class="subtitle">A beautiful, minimalist sound meter for your Mac that floats on top of your work.
-                </p>
-                <div class="cta-group">
-                    <a href="https://github.com/benjscohen/sound_meter/releases/latest" class="btn-primary"
-                        id="download-btn">Download for Mac</a>
-                    <p class="version-text" id="version-text">Latest Version • macOS 13+</p>
-                    <p class="version-text" id="download-count"
-                        style="margin-top: 4px; font-size: 0.9em; opacity: 0.8;"></p>
+    <main id="main">
+        <!-- Hero -->
+        <section class="hero" id="top">
+            <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="wrap hero-grid">
+                <div class="hero-copy">
+                    <p class="eyebrow"><span class="dot"></span>Free and open source for macOS</p>
+                    <h1>Know when you’re getting&nbsp;loud.</h1>
+                    <p class="lede">A tiny orb that floats above your work. It stays green while you speak
+                        comfortably and warms to red when you don’t&nbsp;— so you notice before anyone has to tell
+                        you.</p>
+                    <div class="cta">
+                        <a class="btn btn-dark btn-lg" data-download
+                            href="https://github.com/benjscohen/sound_meter/releases/latest">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+                            </svg>
+                            Download for Mac
+                        </a>
+                        <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
+                    </div>
+                    <p class="meta">
+                        <span id="version-text">Latest version</span>
+                        <span>macOS 13 or later</span>
+                        <span id="download-count" hidden></span>
+                    </p>
+                    <p class="other-device" id="other-device" hidden>
+                        Sound Meter runs on Mac.
+                        <button type="button" class="link" id="copy-link">Copy the link</button> to grab it later.
+                    </p>
                 </div>
-            </div>
-            <div class="hero-image">
-                <img src="./assets/mockup_v2.png" alt="Shhh.it App Mockup" class="app-mockup">
-                <div class="glow-effect"></div>
+
+                <div class="demo" id="demo">
+                    <div class="scene" aria-hidden="true">
+                        <div class="call">
+                            <div class="call-bar"><i></i><i></i><i></i><span>Weekly sync</span></div>
+                            <div class="tiles">
+                                <div class="tile"><b class="a1">MA</b><em>Maya</em></div>
+                                <div class="tile"><b class="a2">JL</b><em>Jordan</em></div>
+                                <div class="tile"><b class="a3">SR</b><em>Sam</em></div>
+                                <div class="tile you" id="tile-you"><b class="a4">You</b><em>You</em></div>
+                            </div>
+                            <div class="call-controls"><i></i><i></i><i class="end"></i></div>
+                        </div>
+                        <div class="floater">
+                            <span class="orb" id="demo-orb"></span>
+                        </div>
+                    </div>
+                    <div class="demo-bar">
+                        <span class="status" id="demo-status" role="status"><i></i><span>Sounding good</span></span>
+                        <button class="btn btn-light btn-sm" id="demo-toggle" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="3" width="6" height="11" rx="3" />
+                                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.500V21" />
+                            </svg>
+                            <span>Try it with your voice</span>
+                        </button>
+                    </div>
+                    <p class="demo-note" id="demo-note">Runs right here in your browser. Nothing is recorded or
+                        sent.</p>
+                </div>
             </div>
         </section>
 
-        <section class="features">
-            <div class="feature-card">
-                <div class="icon">🤫</div>
-                <h3>Visual Feedback</h3>
-                <p>Instantly see when you're too loud. The circle glows from green to red as volume increases.</p>
-            </div>
-            <div class="feature-card">
-                <div class="icon">📌</div>
-                <h3>Always on Top</h3>
-                <p>Floats above all your windows so you never lose track of your volume during calls.</p>
-            </div>
-            <div class="feature-card">
-                <div class="icon">🔒</div>
-                <h3>Privacy First</h3>
-                <p>Runs completely locally. No audio is ever recorded or sent to the cloud.</p>
+        <!-- Zones -->
+        <section class="section" id="how">
+            <div class="wrap">
+                <div class="section-head">
+                    <p class="kicker">How it works</p>
+                    <h2>One glance tells you.</h2>
+                    <p>No numbers, no graphs to read mid-sentence. The orb grows and changes colour with your voice,
+                        right at the edge of your vision.</p>
+                </div>
+                <div class="zones">
+                    <article class="zone card">
+                        <div class="zone-stage"><span class="orb zone-good"></span></div>
+                        <h3>Sounding good</h3>
+                        <p>Small and green. You’re at a comfortable level, so you can forget it’s there.</p>
+                    </article>
+                    <article class="zone card">
+                        <div class="zone-stage"><span class="orb zone-elevated"></span></div>
+                        <h3>Getting loud</h3>
+                        <p>It swells and turns amber as you get animated. A gentle nudge, not an alarm.</p>
+                    </article>
+                    <article class="zone card">
+                        <div class="zone-stage"><span class="orb zone-loud"></span></div>
+                        <h3>Too loud</h3>
+                        <p>Big and red. Take a breath, bring it down, and watch it settle back to green.</p>
+                    </article>
+                </div>
             </div>
         </section>
 
-        <section class="about">
-            <div class="about-content">
-                <h2>Why I built this</h2>
-                <p class="quote">"I am constantly told I am talking loudly but don't even realize it."</p>
-                <div class="signature">
-                    <p>— Benj Cohen</p>
+        <!-- Features -->
+        <section class="section section-tint">
+            <div class="wrap">
+                <div class="section-head">
+                    <p class="kicker">Built for calls</p>
+                    <h2>Small on purpose.</h2>
+                    <p>Sound Meter does one thing and stays out of the way while it does it.</p>
                 </div>
+                <div class="features">
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="13" rx="2.5" />
+                                <path d="M8 21h8M12 17v4" />
+                                <circle cx="17" cy="8" r="1.6" fill="currentColor" stroke="none" />
+                            </svg></span>
+                        <h3>Floats above everything</h3>
+                        <p>Stays visible over every window and full-screen app, including your video calls and
+                            slides.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+                                <path d="M8 10.500V7.500a4 4 0 0 1 8 0v3" />
+                            </svg></span>
+                        <h3>Private by design</h3>
+                        <p>It measures volume and nothing else. No audio is recorded, stored, or sent anywhere.
+                            Ever.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+                                <circle cx="16" cy="7" r="2" />
+                                <circle cx="10" cy="17" r="2" />
+                            </svg></span>
+                        <h3>Tuned to you</h3>
+                        <p>Five sensitivity levels, from a whisper-quiet room to a noisy open office or a hot
+                            mic.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="9" y="3" width="6" height="11" rx="3" />
+                                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.500V21" />
+                            </svg></span>
+                        <h3>Any microphone</h3>
+                        <p>Built-in mic, AirPods, or a studio setup. Pick the one you’re using and switch any
+                            time.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <path d="M12 3v18M3 12h18M12 3 9.5 5.500M12 3l2.5 2.500M12 21l-2.5-2.500M12 21l2.5-2.500M3 12l2.5-2.500M3 12l2.5 2.500M21 12l-2.5-2.500M21 12l-2.5 2.5" />
+                            </svg></span>
+                        <h3>Put it anywhere</h3>
+                        <p>Drag the orb to whichever corner of the screen suits you. It’s also in your menu bar
+                            when you need it.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <path d="M20 12a8 8 0 1 1-2.6-5.900M20 4v4.500h-4.5" />
+                            </svg></span>
+                        <h3>Updates itself</h3>
+                        <p>New versions install quietly in the background. Signed and notarized by Apple.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Insights (shown once a release that includes it is available) -->
+        <section class="section" id="insights" data-min-version="1.1.0" hidden>
+            <div class="wrap split">
+                <div class="split-copy">
+                    <p class="kicker">New · Insights</p>
+                    <h2>See how your day sounded.</h2>
+                    <p>Sound Meter keeps a simple, private history of how loud you’ve been. Spot the meeting that
+                        always gets heated, and watch your loud minutes drop week over week.</p>
+                    <ul class="checks">
+                        <li>A timeline of every day, minute by minute</li>
+                        <li>Loud time, average and peak at a glance</li>
+                        <li>Stored only on your Mac. Export or delete it any time</li>
+                    </ul>
+                </div>
+                <div class="insights-card card" aria-hidden="true">
+                    <div class="mini-stats">
+                        <div><span>Loud time</span><b>12m</b><em class="good">−5 pts</em></div>
+                        <div><span>Average</span><b>34%</b><em class="good">−8 pts</em></div>
+                        <div><span>Monitored</span><b>6h 50m</b></div>
+                    </div>
+                    <svg class="mini-chart" viewBox="0 0 520 180" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="mc-stroke" gradientUnits="userSpaceOnUse" x1="0" y1="170" x2="0"
+                                y2="10">
+                                <stop offset="0" stop-color="#30d158" />
+                                <stop offset=".45" stop-color="#ffcc00" />
+                                <stop offset="1" stop-color="#ff453a" />
+                            </linearGradient>
+                            <linearGradient id="mc-fill" gradientUnits="userSpaceOnUse" x1="0" y1="170" x2="0"
+                                y2="10">
+                                <stop offset="0" stop-color="#30d158" stop-opacity=".02" />
+                                <stop offset=".45" stop-color="#ffcc00" stop-opacity=".2" />
+                                <stop offset="1" stop-color="#ff453a" stop-opacity=".25" />
+                            </linearGradient>
+                        </defs>
+                        <line x1="0" x2="520" y1="170" y2="170" class="mc-grid" />
+                        <line x1="0" x2="520" y1="110" y2="110" class="mc-grid" />
+                        <line x1="0" x2="520" y1="52" y2="52" class="mc-limit" />
+                        <path class="mc-area"
+                            d="M0 132 20 126 40 138 60 118 80 128 100 96 120 60 135 44 150 82 170 120 190 130 210 112 230 124 250 136 270 118 290 104 310 126 330 134 350 110 370 74 385 40 400 66 420 112 440 128 460 120 480 134 500 124 520 130V170H0Z" />
+                        <path class="mc-line"
+                            d="M0 132 20 126 40 138 60 118 80 128 100 96 120 60 135 44 150 82 170 120 190 130 210 112 230 124 250 136 270 118 290 104 310 126 330 134 350 110 370 74 385 40 400 66 420 112 440 128 460 120 480 134 500 124 520 130" />
+                    </svg>
+                    <div class="mini-axis"><span>9 AM</span><span>11 AM</span><span>1 PM</span><span>3 PM</span><span>5
+                            PM</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Install -->
+        <section class="section" id="install">
+            <div class="wrap">
+                <div class="section-head">
+                    <p class="kicker">Install</p>
+                    <h2>Up and running in under a minute.</h2>
+                    <p>No account, no setup, nothing to configure.</p>
+                </div>
+
+                <div class="download-banner" id="download-banner" role="status" hidden>
+                    <span class="orb orb-xs" aria-hidden="true"></span>
+                    <span><b>Your download has started.</b> Here’s what to do next.</span>
+                </div>
+
+                <ol class="steps">
+                    <li class="step card">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <rect x="38" y="8" width="44" height="54" rx="8" class="art-surface" />
+                                <path d="M60 22v20m0 0-8-8m8 8 8-8" class="art-accent" />
+                                <path d="M48 52h24" class="art-line" />
+                                <rect x="30" y="68" width="60" height="5" rx="2.5" class="art-track" />
+                                <rect x="30" y="68" width="42" height="5" rx="2.5" class="art-fill" />
+                            </svg>
+                        </div>
+                        <span class="step-num">1</span>
+                        <h3>Download</h3>
+                        <p>Grab the installer. It’s a single file, signed and notarized by Apple.</p>
+                        <a class="btn btn-dark btn-sm" data-download
+                            href="https://github.com/benjscohen/sound_meter/releases/latest">Download for Mac</a>
+                    </li>
+                    <li class="step card">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <circle cx="30" cy="40" r="15" class="art-orb" />
+                                <path d="M54 40h18m0 0-6-6m6 6-6 6" class="art-line" />
+                                <path d="M82 28a4 4 0 0 1 4-4h7l4 4h9a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H86a4 4 0 0 1-4-4Z"
+                                    class="art-surface" />
+                                <path d="M92 48l4-9 4 9m-6.7-3h5.4" class="art-line thin" />
+                            </svg>
+                        </div>
+                        <span class="step-num">2</span>
+                        <h3>Drag to Applications</h3>
+                        <p>Open the downloaded file and drag Sound Meter into your Applications folder.</p>
+                    </li>
+                    <li class="step card">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <rect x="18" y="10" width="84" height="60" rx="10" class="art-surface" />
+                                <rect x="55" y="19" width="10" height="16" rx="5" class="art-accent-fill" />
+                                <path d="M50 30a10 10 0 0 0 20 0M60 40v4" class="art-accent" />
+                                <rect x="26" y="52" width="30" height="11" rx="5.5" class="art-track" />
+                                <rect x="64" y="52" width="30" height="11" rx="5.5" class="art-button" />
+                            </svg>
+                        </div>
+                        <span class="step-num">3</span>
+                        <h3>Allow the microphone</h3>
+                        <p>Open Sound Meter and click Allow when macOS asks. The orb appears and you’re done.</p>
+                    </li>
+                </ol>
+                <p class="fineprint">Requires macOS 13 or later. Having trouble? <a
+                        href="https://github.com/benjscohen/sound_meter/issues" target="_blank" rel="noopener">Open
+                        an issue on GitHub</a>.</p>
+            </div>
+        </section>
+
+        <!-- Story -->
+        <section class="section section-tint">
+            <div class="wrap story">
+                <p class="kicker">Why I built this</p>
+                <blockquote>“I am constantly told I am talking loudly but don’t even realize it.”</blockquote>
+                <p class="by">Benj Cohen, maker of Shhh.it</p>
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="section" id="faq">
+            <div class="wrap faq-grid">
+                <div class="section-head left">
+                    <p class="kicker">FAQ</p>
+                    <h2>Questions, answered.</h2>
+                </div>
+                <div class="faq">
+                    <details>
+                        <summary>Does it record or listen to what I say?</summary>
+                        <p>No. Sound Meter only measures how loud the microphone signal is, moment to moment, on
+                            your Mac. No audio is recorded, stored, or sent anywhere. The app is open source, so
+                            you can <a href="https://github.com/benjscohen/sound_meter" target="_blank"
+                                rel="noopener">read exactly what it does</a>.</p>
+                    </details>
+                    <details>
+                        <summary>Does it work with Zoom, Google Meet and Teams?</summary>
+                        <p>Yes. It listens to your microphone independently, so it works alongside any calling
+                            app, and in person too.</p>
+                    </details>
+                    <details>
+                        <summary>Will other people on my call see it?</summary>
+                        <p>Only if you share your entire screen. Share a single window or tab and the orb stays
+                            between you and your Mac.</p>
+                    </details>
+                    <details>
+                        <summary>It turns red too easily (or never does). Can I adjust it?</summary>
+                        <p>Yes. There are five sensitivity levels in the orb’s controls. Pick the one where your
+                            normal speaking voice stays green.</p>
+                    </details>
+                    <details>
+                        <summary>How do I quit or uninstall it?</summary>
+                        <p>Click the Sound Meter icon in your menu bar and choose Quit. To uninstall, drag Sound
+                            Meter from Applications to the Trash.</p>
+                    </details>
+                    <details>
+                        <summary>Is it really free?</summary>
+                        <p>Yes. Free, with no account and no ads. The source code is on GitHub.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Closing CTA -->
+        <section class="closing">
+            <div class="wrap closing-inner">
+                <span class="orb orb-lg" aria-hidden="true"></span>
+                <h2>Speak up. Just not <em>that</em> much.</h2>
+                <a class="btn btn-dark btn-lg" data-download
+                    href="https://github.com/benjscohen/sound_meter/releases/latest">Download for Mac</a>
+                <p class="meta center"><span>Free</span><span>Open source</span><span>macOS 13 or later</span></p>
             </div>
         </section>
     </main>
 
-    <footer>
-        <p>&copy; 2025 Benj Cohen. All rights reserved.</p>
-        <p><a href="https://shhh.it.com">shhh.it.com</a></p>
+    <footer class="footer">
+        <div class="wrap footer-inner">
+            <a class="logo" href="#top"><span class="orb orb-xs" aria-hidden="true"></span><span>Shhh.it</span></a>
+            <p>&copy; <span id="year">2026</span> Benj Cohen</p>
+            <nav aria-label="Footer">
+                <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/benjscohen/sound_meter/releases" target="_blank"
+                    rel="noopener">Releases</a>
+                <a href="https://github.com/benjscohen/sound_meter/issues" target="_blank" rel="noopener">Support</a>
+            </nav>
+        </div>
     </footer>
+
+    <div class="toast" id="toast" role="status" hidden></div>
 
     <script type="module" src="./main.js"></script>
 </body>

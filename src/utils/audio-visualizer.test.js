@@ -1,48 +1,114 @@
-const { calculateSize, calculateColor, CONSTANTS } = require('./audio-visualizer');
+const {
+    calculateSize,
+    calculateColor,
+    colorForRatio,
+    levelRatio,
+    zoneForRatio,
+    smoothLevel,
+    averageLevel,
+    CONSTANTS
+} = require('./audio-visualizer');
 
 describe('Audio Visualizer Logic', () => {
-    const { SENSITIVITY_PRESETS, MIN_SIZE, MAX_ADDITIONAL_SIZE } = CONSTANTS;
+    const { SENSITIVITY_PRESETS, SENSITIVITY_OPTIONS, MIN_SIZE, MAX_ADDITIONAL_SIZE, COLORS, MAX_RATIO } = CONSTANTS;
 
     describe('calculateSize', () => {
-        test('should return minimum size when volume is 0', () => {
+        test('returns minimum size when volume is 0', () => {
             expect(calculateSize(0)).toBe(MIN_SIZE);
         });
 
-        test('should return maximum size when volume is at default sensitivity max', () => {
+        test('returns maximum size at the default sensitivity max', () => {
             expect(calculateSize(SENSITIVITY_PRESETS.MEDIUM)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
         });
 
-        test('should adjust max size threshold based on sensitivity', () => {
-            // At HIGH sensitivity (70), volume 70 should be max size
-            expect(calculateSize(70, SENSITIVITY_PRESETS.HIGH)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
+        test('never exceeds maximum size', () => {
+            expect(calculateSize(255, SENSITIVITY_PRESETS.HIGH)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
+        });
 
-            // At LOW sensitivity (210), volume 70 should be smaller
-            const lowSensSize = calculateSize(70, SENSITIVITY_PRESETS.LOW);
-            const highSensSize = calculateSize(70, SENSITIVITY_PRESETS.HIGH);
-            expect(lowSensSize).toBeLessThan(highSensSize);
+        test('adjusts max size threshold based on sensitivity', () => {
+            expect(calculateSize(70, SENSITIVITY_PRESETS.HIGH)).toBe(MIN_SIZE + MAX_ADDITIONAL_SIZE);
+            expect(calculateSize(70, SENSITIVITY_PRESETS.LOW))
+                .toBeLessThan(calculateSize(70, SENSITIVITY_PRESETS.HIGH));
         });
     });
 
     describe('calculateColor', () => {
-        test('should be pure green when volume is 0', () => {
-            const color = calculateColor(0);
-            expect(color).toEqual({ r: 0, g: 255, b: 0 });
+        test('is green when silent', () => {
+            expect(calculateColor(0)).toEqual(COLORS.GREEN);
         });
 
-        test('should be pure red when volume is at sensitivity max', () => {
-            const color = calculateColor(SENSITIVITY_PRESETS.MEDIUM);
-            expect(color).toEqual({ r: 255, g: 0, b: 0 });
+        test('is red at the sensitivity max and beyond', () => {
+            expect(calculateColor(SENSITIVITY_PRESETS.MEDIUM)).toEqual(COLORS.RED);
+            expect(calculateColor(255, SENSITIVITY_PRESETS.HIGH)).toEqual(COLORS.RED);
         });
 
-        test('should adjust color thresholds based on sensitivity', () => {
-            // At HIGH sensitivity (70), volume 70 is RED
-            const highSensColor = calculateColor(70, SENSITIVITY_PRESETS.HIGH);
-            expect(highSensColor).toEqual({ r: 255, g: 0, b: 0 });
-
-            // At LOW sensitivity (210), volume 70 is likely GREEN-YELLOW (not red)
-            const lowSensColor = calculateColor(70, SENSITIVITY_PRESETS.LOW);
-            expect(lowSensColor.r).toBeLessThan(255); // Not fully red
-            expect(lowSensColor.g).toBe(255); // Still fully green (yellowish)
+        test('is amber at the yellow point', () => {
+            expect(calculateColor(60, SENSITIVITY_PRESETS.MEDIUM)).toEqual(COLORS.AMBER);
         });
+
+        test('shifts thresholds with sensitivity', () => {
+            expect(calculateColor(70, SENSITIVITY_PRESETS.HIGH)).toEqual(COLORS.RED);
+            const low = calculateColor(70, SENSITIVITY_PRESETS.LOW);
+            expect(low).not.toEqual(COLORS.RED);
+            expect(low.g).toBeGreaterThan(COLORS.RED.g);
+        });
+
+        test('always returns valid channel values', () => {
+            for (const ratio of [-1, 0, 0.2, 0.43, 0.7, 1, 4]) {
+                const { r, g, b } = colorForRatio(ratio);
+                for (const channel of [r, g, b]) {
+                    expect(Number.isInteger(channel)).toBe(true);
+                    expect(channel).toBeGreaterThanOrEqual(0);
+                    expect(channel).toBeLessThanOrEqual(255);
+                }
+            }
+        });
+    });
+
+    describe('levelRatio', () => {
+        test('is clamped and safe for bad input', () => {
+            expect(levelRatio(0)).toBe(0);
+            expect(levelRatio(NaN)).toBe(0);
+            expect(levelRatio(50, 0)).toBe(0);
+            expect(levelRatio(10000, SENSITIVITY_PRESETS.HIGH)).toBe(MAX_RATIO);
+            expect(levelRatio(70, SENSITIVITY_PRESETS.MEDIUM)).toBeCloseTo(0.5);
+        });
+    });
+
+    describe('zoneForRatio', () => {
+        test('maps ratios to zones', () => {
+            expect(zoneForRatio(0)).toBe('good');
+            expect(zoneForRatio(0.3)).toBe('good');
+            expect(zoneForRatio(0.5)).toBe('elevated');
+            expect(zoneForRatio(0.75)).toBe('loud');
+            expect(zoneForRatio(1.4)).toBe('loud');
+        });
+    });
+
+    describe('smoothLevel', () => {
+        test('rises faster than it falls', () => {
+            const up = smoothLevel(0, 100) - 0;
+            const down = 100 - smoothLevel(100, 0);
+            expect(up).toBeGreaterThan(down);
+        });
+
+        test('converges on a steady input', () => {
+            let level = 0;
+            for (let i = 0; i < 200; i++) level = smoothLevel(level, 80);
+            expect(level).toBeCloseTo(80, 3);
+        });
+    });
+
+    describe('averageLevel', () => {
+        test('averages byte data and tolerates empties', () => {
+            expect(averageLevel(new Uint8Array([0, 100, 200]))).toBe(100);
+            expect(averageLevel(new Uint8Array(0))).toBe(0);
+            expect(averageLevel(null)).toBe(0);
+        });
+    });
+
+    test('sensitivity options cover every preset exactly once', () => {
+        const values = SENSITIVITY_OPTIONS.map(o => o.value).sort((a, b) => a - b);
+        expect(values).toEqual(Object.values(SENSITIVITY_PRESETS).sort((a, b) => a - b));
     });
 });

@@ -4,13 +4,13 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 
 ## Features
 
-- **🎤 Real-time Monitoring:** Instantly visualizes your microphone input level.
-- **🎨 Visual Feedback:** The circle grows and changes color (Green → Yellow → Red) as volume increases.
-- **⚙️ Adjustable Sensitivity:** Choose from High, Medium, or Low sensitivity to suit your environment.
-- **🖥️ Always on Top:** Floats above all other windows so you never lose track of it during calls.
-- **🔒 Privacy First:** Runs 100% locally. No audio is ever recorded, stored, or transmitted.
-- **🔄 Auto-Updates:** Automatically checks for and installs the latest version.
-- **📈 Live Stats:** Website displays real-time download counts from GitHub.
+- **Glanceable feedback:** a floating orb that grows and shifts green → amber → red as you get louder.
+- **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
+- **Click for everything:** click the orb (or the menu-bar icon) to switch microphone, change sensitivity, pause, or open Insights. Drag it anywhere; it remembers where you put it.
+- **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
+- **Insights:** a private, per-minute history of how loud you were, with a daily timeline and a 14-day overview. Export to CSV or delete any time.
+- **Privacy first:** runs 100% locally. Only loudness numbers are stored; audio is never recorded or transmitted.
+- **Auto-updates:** checks for new versions in the background.
 
 ## Installation
 
@@ -41,11 +41,20 @@ npm start
 
 ### Testing
 
-Run the unit test suite:
-
 ```bash
-npm test
+npm test         # unit tests (meter maths, history store, settings)
+npm run smoke    # boots the real app with a fake microphone, walks through
+                 # onboarding, the meter and Insights, and saves screenshots to ./shots
 ```
+
+### Project layout
+
+- `main.js` — main process: windows, menus, tray, updates, IPC
+- `src/preload.js` — the only bridge between windows and the main process
+- `src/index.html` + `renderer.js` — the floating meter
+- `src/onboarding.*`, `src/insights.*` — welcome flow and history window
+- `src/main/` — settings and history stores (plain JSON files in the app's user-data folder)
+- `scripts/` — smoke test, asset generation (`npm run assets`), signing helpers
 
 ## Website / Landing Page
 
@@ -58,13 +67,13 @@ The `landing_page/` directory contains the source code for the product website (
 
 This project uses **GitHub Actions** for a fully automated CI/CD pipeline.
 
-- **Push to main:** Triggers a build check.
+- **Push to main / pull request:** Runs unit tests and builds the landing page.
 - **Push a tag (e.g., `v1.0.0`):** Triggers the full release pipeline:
     1.  Runs unit tests.
     2.  Builds the application.
     3.  Signs the code with an Apple Developer ID.
     4.  Notarizes the app with Apple.
-    5.  Publishes a new Release to GitHub with the signed `.dmg` and auto-update artifacts.
+    5.  Publishes a new Release to GitHub with a signed universal (Apple silicon + Intel) `.dmg` and auto-update artifacts.
 
 ### Secrets
 
