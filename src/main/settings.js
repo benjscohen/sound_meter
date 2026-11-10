@@ -12,7 +12,7 @@ const DEFAULTS = Object.freeze({
     paused: false,
     calendar: false, // Opted in to showing calendar meetings in Insights
     nudge: false,               // Notify after staying too loud for a while
-    weeklyRecap: true,          // One notification a week with last week's card
+    weeklyRecap: false,         // One notification a week inviting you to see last week's card
     lastRecapWeek: null,        // Monday (YYYY-MM-DD) of the last week a recap was considered
     orbSize: 'medium',          // 'small' | 'medium' | 'large'
     orbOpacity: 1,              // 1 | 0.75 | 0.5

@@ -3,7 +3,7 @@
 //
 // The link carries the numbers in its query string and is rendered by the
 // website (landing_page/api/_stats.js mirrors the format and wording here;
-// scripts/check-share.mjs keeps the two in step).
+// scripts/check-site.mjs keeps the two in step).
 
 const SITE = 'https://shhh.it.com';
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

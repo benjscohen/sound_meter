@@ -5,10 +5,9 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 ## Features
 
 - **Glanceable feedback:** a floating orb that grows and shifts green → amber → red as you get louder. Three sizes, three opacities, and optional level symbols for when colour alone is hard to read.
-- **Automatic sensitivity:** learns your normal speaking level in the first minute of talking, once, then leaves it alone. Presets and “Relearn My Voice” are in the menu.
-- **Voice Focus (beta):** opt-in macOS voice processing so sound from your speakers counts less.
-- **Show only during calls:** hides the orb and releases the microphone unless a call app is using it.
-- **Notifications (opt-in nudge, weekly recap):** a quiet nudge after sustained loudness, and one recap a week that opens your share card.
+- **Automatic sensitivity:** learns your normal speaking level from less than a minute of talking, once, then leaves it alone. Presets and “Relearn My Voice” are in the menu.
+- **Listen only during calls:** hides the orb and releases the microphone unless another app is using it, with a short grace period so muting doesn't make it blink away.
+- **Notifications, both opt-in:** a quiet nudge after sustained loudness, and a weekly note that your week is ready (never during a call), which opens your share card.
 - **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
 - **Click for everything:** click the orb (or the menu-bar icon) to switch microphone, change sensitivity, pause, or open Insights. Drag it anywhere; it remembers where you put it.
 - **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
@@ -51,7 +50,7 @@ npm start
 ```bash
 npm test         # unit tests (meter maths, history store, settings)
 npm run demo          # re-renders the website film from the smoke-test screenshots (needs ffmpeg)
-npm run check:share   # app-built share links vs. the website's share page and preview image
+npm run check:site    # the website's logic: share links, share page, preview image, download picking
 npm run smoke    # boots the real app with a fake microphone, walks through
                  # onboarding, the meter and Insights, and saves screenshots to ./shots
 ```

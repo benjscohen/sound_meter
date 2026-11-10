@@ -1,5 +1,5 @@
 import { inject } from '@vercel/analytics';
-import { REPO, revealForVersion } from './release.js';
+import { REPO, chipFromHints, installers, revealForVersion } from './release.js';
 
 inject();
 
@@ -211,24 +211,23 @@ document.querySelectorAll('[data-download]').forEach((link) => {
 });
 
 // Macs come with either Apple silicon or an Intel chip, and each has its own
-// (smaller) download. Chrome can say which; elsewhere the graphics chip is a
-// good tell. When in doubt assume Apple silicon: every Mac since 2020.
+// (smaller) download. Gather what the browser will say and let
+// chipFromHints decide.
 async function detectChip() {
+    const hints = {};
     try {
-        const { architecture } = await navigator.userAgentData.getHighEntropyValues(['architecture']);
-        if (architecture) return architecture === 'arm' ? 'arm64' : 'x64';
+        hints.architecture = (await navigator.userAgentData.getHighEntropyValues(['architecture'])).architecture;
     } catch {
         // Not Chromium.
     }
     try {
         const gl = document.createElement('canvas').getContext('webgl');
         const info = gl.getExtension('WEBGL_debug_renderer_info');
-        const renderer = gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
-        if (/intel|amd|radeon|nvidia/i.test(renderer)) return 'x64';
+        hints.renderer = gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
     } catch {
         // No WebGL.
     }
-    return 'arm64';
+    return chipFromHints(hints);
 }
 
 const CHIPS = { arm64: 'Apple silicon', x64: 'Intel' };
@@ -239,15 +238,19 @@ async function chooseDownload(urls) {
     const show = () => {
         const other = chip === 'arm64' ? 'x64' : 'arm64';
         document.querySelectorAll('[data-download]').forEach((link) => { link.href = urls[chip]; });
-        $('chip-name').textContent = `For ${CHIPS[chip]} Macs.`;
-        $('chip-switch').textContent = `${CHIPS[other]} Mac? Switch`;
-        $('other-chip').hidden = !isMac;
+        // Say which build this is, right beside every download button, with a
+        // one-click way to get the other.
+        document.querySelectorAll('.chip-line').forEach((line) => {
+            line.querySelector('.chip-name').textContent = `For ${CHIPS[chip]} Macs.`;
+            line.querySelector('.chip-switch').textContent = `Have an ${CHIPS[other]} Mac? Switch`;
+            line.hidden = !isMac;
+        });
     };
-    $('chip-switch').addEventListener('click', (event) => {
+    document.querySelectorAll('.chip-switch').forEach((link) => link.addEventListener('click', (event) => {
         event.preventDefault();
         chip = chip === 'arm64' ? 'x64' : 'arm64';
         show();
-    });
+    }));
     show();
     return urls[chip];
 }
@@ -279,8 +282,6 @@ async function fetchRelease() {
     if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
     const releases = (await response.json()).filter((r) => !r.draft && !r.prerelease);
     const latest = releases[0];
-    const dmgs = (latest?.assets || []).filter((asset) => asset.name.endsWith('.dmg'));
-    const dmg = (pattern) => dmgs.find((asset) => pattern.test(asset.name))?.browser_download_url || null;
 
     // Count people, not auto-update pings: only the installer and app archive.
     const downloads = releases
@@ -290,7 +291,7 @@ async function fetchRelease() {
 
     return {
         version: latest ? latest.tag_name.replace(/^v/, '') : null,
-        urls: { arm64: dmg(/arm64/), x64: dmg(/x64/), any: dmgs[0]?.browser_download_url || null },
+        urls: installers(latest?.assets),
         downloads
     };
 }

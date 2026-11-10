@@ -64,7 +64,7 @@
             <p>Once a minute, Sound Meter saves a few numbers: how long it was listening, your average and peak
                 level, how many seconds were too loud, and the name of the call app in use, if any. These are stored
                 in <code>~/Library/Application Support/sound_meter/history</code> on your Mac and removed
-                automatically after 90 days. Insights reads them to draw its charts. You can export them as a CSV file
+                automatically once they are 90 days old. Insights reads them to draw its charts. You can export them as a CSV file
                 or clear them from the Insights window.</p>
 
             <h2>Call apps</h2>
@@ -73,7 +73,7 @@
 
             <h2>Calendar, if you connect it</h2>
             <p>Connecting your calendar is optional and off by default. If you turn it on, Sound Meter reads event
-                titles, times and attendee names from the macOS Calendar app when you open Insights, to show how loud
+                titles, times and attendee names from the macOS Calendar app while Insights is open, to show how loud
                 you were in each meeting. Calendar details are shown to you and then discarded. They are never saved
                 by Sound Meter and never sent anywhere. You can turn this off from the menu or in System
                 Settings.</p>

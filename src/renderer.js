@@ -42,7 +42,7 @@
         }
         if (message) pill.textContent = message;
         // Problems stay visible; normal states only show the pill on hover.
-        stage.classList.toggle('notice', mode === 'denied' || mode === 'no-device');
+        stage.classList.toggle('notice', mode === 'denied' || mode === 'no-device' || mode === 'idle');
         const status = mode === 'denied' || mode === 'no-device' ? mode : mode === 'listening' ? 'granted' : null;
         if (status) api.reportMicStatus(status);
     }
@@ -146,7 +146,7 @@
                 return;
             }
             if (state.idle) {
-                setMode('idle'); // Waiting for a call: microphone released, window hidden
+                setMode('idle', 'Waiting for a call'); // Microphone released; the window is normally hidden
                 return;
             }
 

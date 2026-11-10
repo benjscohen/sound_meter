@@ -1,5 +1,6 @@
 const { createNudger, weekKey, recapDue } = require('./reminders');
 const { createCalibrator } = require('./calibration');
+const { createPresence } = require('./presence');
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -56,6 +57,11 @@ describe('weekly recap', () => {
         expect(recapDue({ ...base, lastWeek: '2026-11-16', now: at(16, 15) })).toEqual({ show: false, week: '2026-11-16' });
     });
 
+    test('never repeats if the clock goes backwards', () => {
+        // Shown for the week of the 16th, then the clock is set back a week.
+        expect(recapDue({ lastWeek: '2026-11-16', monitoredSeconds: 3 * 3600, now: at(12, 10) })).toEqual({ show: false, week: '2026-11-16' });
+    });
+
     test('still shows later in the week if Monday was missed, but not for an empty week', () => {
         expect(recapDue({ lastWeek: '2026-11-09', monitoredSeconds: 3 * 3600, now: at(19, 14) }).show).toBe(true);
         expect(recapDue({ lastWeek: '2026-11-09', monitoredSeconds: 60, now: at(16, 10) })).toEqual({ show: false, week: '2026-11-16' });
@@ -81,7 +87,9 @@ describe('calibrator', () => {
     });
 
     test('a quiet talker and a loud talker get different limits, within bounds', () => {
-        expect(learn([...room(20), ...talk(22, 60)]).result).toBe(70);        // Clamped to the most sensitive preset
+        const soft = learn([...room(20), ...talk(30, 60)]).result;
+        expect(soft).toBeGreaterThanOrEqual(70);
+        expect(soft).toBeLessThan(90);                                        // Near the most sensitive preset
         expect(learn([...room(20), ...talk(95, 60)]).result).toBeGreaterThan(220);
         expect(learn([...room(20), ...talk(250, 60)]).result).toBe(350);      // Clamped to the least sensitive
     });
@@ -91,10 +99,40 @@ describe('calibrator', () => {
         expect(quiet.result).toBeNull();
         expect(quiet.calibrator.progress()).toBeLessThan(0.5);
 
-        const brief = learn([...room(30), ...talk(60, 20)]);
+        const brief = learn([...room(30), ...talk(60, 14)]);
         expect(brief.result).toBeNull();
         expect(brief.calibrator.progress()).toBeGreaterThan(0.3);
         expect(brief.calibrator.progress()).toBeLessThan(1);
+    });
+
+    test('a real reading: one person on a call, mostly listening', () => {
+        // Per-second microphone levels captured from a real call (webcam mic,
+        // call audio on speakers): a few bursts of speech over a room at 13-20.
+        const real = [
+        1, 12, 55, 65, 49, 38, 10, 43, 41, 15, 54, 38, 26, 18, 6, 24, 21, 14, 16, 14, 11, 14, 13, 14, 22, 17, 16, 18, 16, 18,
+        16, 10, 17, 16, 25, 14, 29, 19, 20, 13, 22, 13, 14, 23, 21, 15, 25, 17, 15, 19, 20, 18, 11, 16, 24, 16, 14, 14, 12, 20,
+        16, 16, 19, 17, 19, 15, 19, 18, 21, 11, 16, 18, 20, 23, 17, 15, 16, 20, 19, 12, 20, 20, 18, 16, 14, 19, 23, 14, 19, 14,
+        18, 17, 18, 18, 11, 14, 18, 13, 15, 13, 13, 21, 12, 13, 14, 22, 19, 16, 15, 15, 13, 20, 21, 12, 18, 16, 16, 21, 18, 22,
+        15, 16, 18, 20, 19, 22, 16, 15, 14, 20, 18, 17, 23, 31, 36, 36, 23, 26, 15, 17, 20, 28, 17, 22, 13, 25, 17, 26, 20, 20
+    ];
+        // Not enough talking in two and a half minutes of mostly listening...
+        expect(learn(real).result).toBeNull();
+        // ...but as the call goes on it settles close to the Medium preset (140),
+        // which is what this person had picked by hand.
+        const { result } = learn([...real, ...real, ...real]);
+        expect(result).toBeGreaterThanOrEqual(115);
+        expect(result).toBeLessThanOrEqual(150);
+    });
+
+    test('a silent room with typing or a fan is not a voice', () => {
+        // Near-zero floor with clicks and a hum well below speaking level.
+        const clicks = Array.from({ length: 400 }, (_, i) => (i % 4 === 0 ? 9 + (i % 7) : i % 3));
+        expect(learn(clicks).result).toBeNull();
+        // Other people's voices from the speakers, quieter than someone at the mic.
+        const bleed = [...room(40), ...talk(21, 200)];
+        expect(learn(bleed).result).toBeNull();
+        // And once the person does speak, it still learns from them.
+        expect(learn([...bleed, ...talk(55, 60)]).result).toBeGreaterThan(110);
     });
 
     test('ignores junk and can start over', () => {
@@ -104,5 +142,45 @@ describe('calibrator', () => {
         for (const level of [...room(20), ...talk(60, 40)]) calibrator.add(level);
         calibrator.reset();
         expect(calibrator.progress()).toBe(0);
+    });
+});
+
+describe('presence (listen only during calls)', () => {
+    const on = { supported: true, app: 'Zoom' };
+    const off = { supported: true, app: null };
+
+    test('is never idle unless the setting is on and the Mac can detect calls', () => {
+        const presence = createPresence({ graceMs: 0 });
+        expect(presence.update({ reading: off, onlyDuringCalls: false, now: 0 }).idle).toBe(false);
+        expect(presence.update({ reading: { supported: false, app: null }, onlyDuringCalls: true, now: 0 })).toEqual(
+            { supported: false, known: true, app: null, idle: false });
+    });
+
+    test('goes idle with no call, and wakes the moment one starts', () => {
+        const presence = createPresence({ graceMs: 0 });
+        expect(presence.update({ reading: off, onlyDuringCalls: true, now: 0 }).idle).toBe(true);
+        expect(presence.update({ reading: on, onlyDuringCalls: true, now: 1000 })).toEqual(
+            { supported: true, known: true, app: 'Zoom', idle: false });
+    });
+
+    test('waits out the grace period before hiding, so a mute does not blink the orb', () => {
+        const presence = createPresence({ graceMs: 45000 });
+        presence.update({ reading: on, onlyDuringCalls: true, now: 0 });
+        expect(presence.update({ reading: off, onlyDuringCalls: true, now: 10000 }).idle).toBe(false);
+        expect(presence.update({ reading: on, onlyDuringCalls: true, now: 20000 }).idle).toBe(false);
+        expect(presence.update({ reading: off, onlyDuringCalls: true, now: 60000 }).idle).toBe(false); // 40s since last seen
+        expect(presence.update({ reading: off, onlyDuringCalls: true, now: 66000 }).idle).toBe(true);
+    });
+
+    test('a failed reading changes nothing', () => {
+        const presence = createPresence({ graceMs: 0 });
+        expect(presence.update({ reading: null, onlyDuringCalls: true, now: 0 })).toEqual(
+            { supported: false, known: false, app: null, idle: false });
+        presence.update({ reading: off, onlyDuringCalls: true, now: 1000 });
+        // Idle, then the helper times out: still idle, still supported.
+        expect(presence.update({ reading: null, onlyDuringCalls: true, now: 2000 })).toEqual(
+            { supported: true, known: true, app: null, idle: true });
+        presence.update({ reading: on, onlyDuringCalls: true, now: 3000 });
+        expect(presence.update({ reading: null, onlyDuringCalls: true, now: 4000 }).app).toBe('Zoom');
     });
 });

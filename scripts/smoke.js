@@ -22,6 +22,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 app.setPath('userData', profile);
 app.commandLine.appendSwitch('use-fake-device-for-media-stream');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+process.env.SOUND_METER_IDLE_GRACE_MS = '1500'; // Don't wait 45s for the orb to hide after a call
 nativeTheme.themeSource = theme;
 fs.mkdirSync(out, { recursive: true });
 
@@ -98,7 +99,9 @@ function setCall(onCall) {
     fixtures.micApps = onCall
         ? [{ bundleId: 'us.zoom.xos', name: 'zoom.us' }, { bundleId: 'com.github.Electron.helper', name: 'Electron' }]
         : [{ bundleId: 'com.github.Electron.helper', name: 'Electron' }];
-    fs.writeFileSync(fixturesFile, JSON.stringify(fixtures));
+    // Written atomically: the app re-reads this file while we change it.
+    fs.writeFileSync(`${fixturesFile}.tmp`, JSON.stringify(fixtures));
+    fs.renameSync(`${fixturesFile}.tmp`, fixturesFile);
 }
 
 async function shoot(win, name) {
@@ -182,6 +185,13 @@ async function run() {
     await wait(500);
     await shoot(welcome, '4-done');
 
+    if (await js(welcome, `document.getElementById('weekly-recap').checked`)) throw new Error('Weekly recap must be off unless chosen');
+    const fits = await js(welcome, `(() => {
+        const step = document.querySelector('.step.active').getBoundingClientRect();
+        const last = document.querySelector('.step.active').lastElementChild.getBoundingClientRect();
+        return last.bottom <= step.bottom + 1;
+    })()`);
+    if (!fits) throw new Error('The last onboarding step overflows its window');
     await js(welcome, `document.getElementById('launch-at-login').checked = false; document.getElementById('primary').click()`);
 
     /* ---- Meter ---------------------------------------------------------- */
@@ -192,6 +202,7 @@ async function run() {
     if (state.settings.sensitivity !== 210 || state.settings.sensitivityMode !== 'manual') {
         throw new Error(`Chosen sensitivity not saved: ${state.settings.sensitivityMode} ${state.settings.sensitivity}`);
     }
+    if (state.settings.weeklyRecap || state.settings.nudge) throw new Error('Notifications must start switched off');
 
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'meter to start listening');
     await wait(1200);
@@ -228,6 +239,12 @@ async function run() {
     await until(() => js(meter, `document.getElementById('pill').textContent === 'Tuned to your voice'`), 'tuned notice');
     for (let i = 0; i < 60; i++) sample(0.9, 200);
     if ((await settingsNow()).sensitivity !== tuned.sensitivity) throw new Error('Sensitivity must not drift after learning');
+    // A different microphone reads differently, so it learns again.
+    await setting({ deviceLabel: 'Studio Microphone' });
+    const relearning = await settingsNow();
+    if (relearning.calibrated || relearning.sensitivity !== 140) throw new Error('Switching microphone should restart learning');
+    await until(() => js(meter, `document.getElementById('pill').textContent === 'New microphone: learning your voice…'`), 'relearning notice');
+    await setting({ sensitivityMode: 'manual', sensitivity: 210 });
 
     // The nudge is opt-in: nothing when off, one notification when on.
     for (let i = 0; i < 12; i++) sample(0.95, 200);
@@ -261,6 +278,9 @@ async function run() {
     setCall(false);
     await until(() => !meter.isVisible(), 'orb to hide when the call ends', 12000);
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'idle'`), 'microphone to be released');
+    if (await js(meter, `document.getElementById('pill').textContent`) !== 'Waiting for a call') throw new Error('Idle orb should say what it is waiting for');
+    const idleState = await js(meter, `window.soundMeter.getState()`);
+    if (!idleState.idle) throw new Error('State should report idle');
     setCall(true);
     await until(() => meter.isVisible(), 'orb to return when a call starts', 12000);
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening to resume');
@@ -293,7 +313,7 @@ async function run() {
     const scrollTo = (id) => js(insights, `document.getElementById(${JSON.stringify(id)}).scrollIntoView({ block: 'start' })`);
 
     ipcMain.emit('insights:open', {});
-    const insights = await until(() => find('insights.html'), 'insights window');
+    let insights = await until(() => find('insights.html'), 'insights window');
     await until(() => js(insights, `document.querySelectorAll('.day:not(:disabled)').length > 5`), 'seeded days');
     await until(() => js(insights, `document.querySelectorAll('#chart-svg path.avg').length > 0`), 'chart');
     if ((await text('#day-metrics .metric')).length !== 4) throw new Error('Day metrics missing');
@@ -396,26 +416,43 @@ async function run() {
     await js(insights, `document.getElementById('share-close').click()`);
     if (await js(insights, `document.getElementById('share-dialog').open`)) throw new Error('Share dialog did not close');
 
-    // Weekly recap: one notification in a new week; clicking it opens the share card.
-    await js(insights, `document.querySelector('#tabs [data-view="day"]').click()`);
-    await until(() => visible('view-day'), 'day view');
+    // Weekly recap: only if asked for, never during a call, once a week,
+    // and clicking it opens the share card even if Insights was closed.
+    const recaps = () => outside.notifications.filter((n) => n.title === 'Your week in volume is ready');
+    const micApp = () => js(meter, `window.soundMeter.getState().then((s) => s.micApp)`);
     await setting({ lastRecapWeek: '2020-01-06' });
     powerMonitor.emit('resume');
+    await wait(400);
+    if (recaps().length) throw new Error('Recap shown without being switched on');
     if (new Date().getHours() >= 9) {
-        const recap = await until(() => outside.notifications.find((n) => n.title.startsWith('Your week in volume:')), 'weekly recap');
-        if (!/Too loud for .+ this week\. Click to see it and share\./.test(recap.body)) throw new Error(`Odd recap: ${recap.body}`);
-        recap.emit('click');
+        await setting({ weeklyRecap: true, lastRecapWeek: '2020-01-06' });
+        powerMonitor.emit('resume');
+        await wait(400);
+        if (recaps().length) throw new Error('Recap must wait while on a call');
+        setCall(false);
+        await until(async () => !(await micApp()), 'call to end', 12000);
+        powerMonitor.emit('resume');
+        await until(() => recaps().length === 1, 'weekly recap');
+        if (recaps()[0].body !== 'See how last week sounded, and share it if you like.') throw new Error(`Odd recap: ${recaps()[0].body}`);
+
+        insights.close();
+        await until(() => !find('insights.html'), 'insights to close');
+        recaps()[0].emit('click');
+        insights = await until(() => find('insights.html'), 'recap to reopen Insights');
         await until(() => js(insights, `document.getElementById('share-dialog').open`), 'recap to open the share card');
         if (!(await visible('view-trends'))) throw new Error('Recap should land on Trends');
         await js(insights, `document.getElementById('share-close').click()`);
         powerMonitor.emit('resume');
         await wait(600);
-        if (outside.notifications.filter((n) => n.title.startsWith('Your week in volume:')).length !== 1) throw new Error('Recap repeated in the same week');
+        if (recaps().length !== 1) throw new Error('Recap repeated in the same week');
+        setCall(true);
+        await until(async () => (await micApp()) === 'Zoom', 'call to resume', 12000);
     } else {
-        console.log('  - weekly recap check skipped before 9am (it waits until then by design)');
-        await js(insights, `document.querySelector('#tabs [data-view="trends"]').click()`);
-        await until(() => visible('view-trends'), 'trends view');
+        console.log('  - weekly recap delivery skipped before 9am (it waits until then by design)');
     }
+    await js(insights, `document.querySelector('#tabs [data-view="trends"]').click()`);
+    await until(() => visible('view-trends'), 'trends view');
+    await until(async () => (await text('#trend-meetings .row-label')).length > 0, 'trend lists');
 
     insights.setSize(740, 600);
     await wait(500);

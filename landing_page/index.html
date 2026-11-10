@@ -75,8 +75,8 @@
                         <span>macOS 13 or later</span>
                         <span id="download-count" hidden></span>
                     </p>
-                    <p class="other-device" id="other-chip" hidden>
-                        <span id="chip-name"></span> <a class="link" id="chip-switch" href="#"></a>
+                    <p class="other-device chip-line" hidden>
+                        <span class="chip-name"></span> <a class="link chip-switch" href="#"></a>
                     </p>
                     <p class="other-device" id="other-device" hidden>
                         Sound Meter runs on Mac.
@@ -189,7 +189,8 @@
                             </svg></span>
                         <h3>Tuned to you</h3>
                         <p>Five sensitivity levels, from a whisper-quiet room to a noisy open office or a hot
-                            mic.</p>
+                            mic.<span data-min-version="1.4.0" hidden> Or leave it on Auto and it learns your
+                                voice.</span></p>
                     </article>
                     <article class="feature">
                         <span class="icon"><svg viewBox="0 0 24 24">
@@ -303,6 +304,9 @@
                         <p>Grab the installer. It’s a single file, signed and notarized by Apple.</p>
                         <a class="btn btn-dark btn-sm" data-download
                             href="https://github.com/benjscohen/sound_meter/releases/latest">Download for Mac</a>
+                        <p class="chip-line chip-note" hidden>
+                            <span class="chip-name"></span> <a class="link chip-switch" href="#"></a>
+                        </p>
                     </li>
                     <li class="step card">
                         <div class="step-art">
@@ -380,9 +384,7 @@
                         <summary>Does it pick up sound from my speakers?</summary>
                         <p>It measures whatever your microphone hears, so loud music or a call played through
                             speakers can raise the reading. For the most accurate picture of your own voice, use
-                            headphones.<span data-min-version="1.4.0" hidden> You can also turn on Voice Focus (beta)
-                                in the orb’s options, which uses macOS voice processing so speaker sound counts
-                                less.</span></p>
+                            headphones.</p>
                     </details>
                     <details>
                         <summary>Will other people on my call see it?</summary>
@@ -392,7 +394,15 @@
                     <details>
                         <summary>It turns red too easily (or never does). Can I adjust it?</summary>
                         <p>Yes. Hover the orb and click Options to choose from five sensitivity levels. Pick the
-                            one where your normal speaking voice stays green.</p>
+                            one where your normal speaking voice stays green.<span data-min-version="1.4.0" hidden>
+                                On Automatic, choose Relearn My Voice to have it listen again.</span></p>
+                    </details>
+                    <details data-min-version="1.4.0" hidden>
+                        <summary>Which download do I need?</summary>
+                        <p>There are two: one for Macs with Apple silicon (every Mac sold since late 2020) and
+                            one for older Macs with an Intel chip. This page picks one for you and says which.
+                            To check, choose Apple menu → About This Mac: “Chip” means Apple silicon,
+                            “Processor” means Intel.</p>
                     </details>
                     <details>
                         <summary>How do I quit or uninstall it?</summary>

@@ -106,7 +106,7 @@
         }));
         const current = SENSITIVITY_OPTIONS.find((o) => o.value === sensitivity);
         sensitivityHint.textContent = auto
-            ? 'Sound Meter learns your normal voice in the first minute of talking.'
+            ? 'Sound Meter learns your normal voice as you talk. It takes less than a minute of speech.'
             : current ? `Best for: ${current.hint.toLowerCase()}` : '';
     }
 
@@ -188,7 +188,8 @@
                 await api.finishOnboarding({
                     sensitivity,
                     sensitivityMode: auto ? 'auto' : 'manual',
-                    launchAtLogin: launchAtLogin.checked
+                    launchAtLogin: launchAtLogin.checked,
+                    weeklyRecap: document.getElementById('weekly-recap').checked
                 });
             }
         } finally {

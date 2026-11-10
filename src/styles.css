@@ -105,6 +105,7 @@ body {
 
 /* Not listening: a calm grey orb with an explanatory glyph. */
 #stage[data-state="paused"] #orb,
+#stage[data-state="idle"] #orb,
 #stage[data-state="denied"] #orb,
 #stage[data-state="no-device"] #orb {
     --c: 134 146 162;
@@ -112,6 +113,7 @@ body {
 }
 
 #stage[data-state="paused"] .glyph-paused,
+#stage[data-state="idle"] .glyph-paused,
 #stage[data-state="denied"] .glyph-denied,
 #stage[data-state="no-device"] .glyph-denied {
     display: block;

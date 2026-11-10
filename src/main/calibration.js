@@ -14,9 +14,11 @@ const PRESETS = Object.values(CONSTANTS.SENSITIVITY_PRESETS);
  * forgiven for it.
  */
 function createCalibrator({
-    speechSeconds = 45,     // How much talking it needs to hear
+    speechSeconds = 20,     // How much talking it needs to hear
     window = 600,           // Seconds of history to consider
     target = 0.38,          // Where normal speech should sit, as a share of the limit
+    minSpeech = 18,         // Nothing quieter than this counts as speech, however silent the room
+    minTypical = 24,        // A "voice" quieter than this is more likely typing or a fan
     min = Math.min(...PRESETS),
     max = Math.max(...PRESETS)
 } = {}) {
@@ -27,9 +29,15 @@ function createCalibrator({
     function speech() {
         if (seconds.length < 10) return [];
         const sorted = [...seconds].sort((a, b) => a - b);
-        // The quietest tenth is the room; speech is well above it.
-        const threshold = percentile(sorted, 0.1) * 1.8 + 3;
-        return sorted.filter((level) => level >= threshold);
+        // The quietest tenth is the room; anything clearly above it is sound.
+        const threshold = Math.max(minSpeech, percentile(sorted, 0.1) * 1.8 + 3);
+        const sounds = sorted.filter((level) => level >= threshold);
+        if (!sounds.length) return [];
+        // Of those sounds, the voice at the microphone is the loud end.
+        // Quieter ones (typing, voices from the speakers, half-spoken
+        // seconds) are left out so they can't drag the estimate down.
+        const cutoff = percentile(sounds, 0.9) * 0.6;
+        return sounds.filter((level) => level >= cutoff);
     }
 
     return {
@@ -41,7 +49,12 @@ function createCalibrator({
 
             const spoken = speech();
             if (spoken.length < speechSeconds) return null;
-            const typical = percentile(spoken, 0.5);
+            // The upper part of what was heard: many "speech" seconds are only
+            // partly spoken (or are a voice from the speakers), which reads
+            // quieter than the person actually talks. Checked against a real
+            // recording of levels, this lands near the hand-picked default.
+            const typical = percentile(spoken, 0.75);
+            if (typical < minTypical) return null; // Implausible for a voice: keep listening
             return Math.round(Math.min(max, Math.max(min, typical / target)));
         },
         /** 0 to 1: how much of the talking it needs has been heard. */

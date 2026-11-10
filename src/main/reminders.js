@@ -55,7 +55,8 @@ function weekKey(ts) {
 function recapDue({ now = Date.now(), lastWeek, monitoredSeconds = 0, minSeconds = 30 * 60 }) {
     const week = weekKey(now);
     if (!lastWeek) return { show: false, week };
-    if (lastWeek === week) return { show: false, week };
+    // Same week, or the clock went backwards (travel, a clock change): nothing new.
+    if (week <= lastWeek) return { show: false, week: lastWeek };
     if (new Date(now).getHours() < 9) return { show: false, week: lastWeek };
     return { show: monitoredSeconds >= minSeconds, week };
 }

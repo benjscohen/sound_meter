@@ -81,6 +81,11 @@ describe('createNative with the helper', () => {
         expect(calls.at(-1)).toEqual(['calendar-events', '500', '2501']);
     });
 
+    test('a reply without a clear answer is "unknown", not "unsupported"', async () => {
+        const odd = createNative({ helperPath, run: replying(() => ({ apps: [] })) });
+        expect(await odd.micState()).toBeNull();
+    });
+
     test('reports when macOS cannot tell which apps use the microphone', async () => {
         const old = createNative({ helperPath, run: replying(() => ({ supported: false, apps: [] })) });
         expect(await old.micState()).toEqual({ supported: false, app: null });
@@ -90,7 +95,7 @@ describe('createNative with the helper', () => {
 
     test('degrades quietly when the helper fails or talks nonsense', async () => {
         const failing = createNative({ helperPath, run: (f, a, o, callback) => callback(new Error('boom')) });
-        expect(await failing.micState()).toEqual({ supported: false, app: null });
+        expect(await failing.micState()).toBeNull();
         expect(await failing.calendarStatus()).toBe('unavailable');
         expect(await failing.calendarEvents(0, 10)).toEqual([]);
 
@@ -103,7 +108,7 @@ describe('createNative with the helper', () => {
         const run = jest.fn();
         const native = createNative({ helperPath: '/nowhere/sm-helper', run });
         expect(native.available).toBe(false);
-        expect(await native.micState()).toEqual({ supported: false, app: null });
+        expect(await native.micState()).toBeNull();
         expect(await native.calendarStatus()).toBe('unavailable');
         expect(run).not.toHaveBeenCalled();
     });
