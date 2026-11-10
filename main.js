@@ -47,9 +47,8 @@ let history;
 let native;
 let tray = null;
 let meterWindow = null;
-let insightsWindow = null;
+let panelWindow = null;    // The one main window: Day, Trends and Settings
 let onboardingWindow = null;
-let settingsWindow = null;
 let dragOrigin = null;
 let isQuitting = false;
 
@@ -395,7 +394,7 @@ function toggleMeter() {
 // Standard (non-floating) windows share a look and manage the Dock icon:
 // Sound Meter lives in the menu bar and only appears in the Dock while a
 // real window is open.
-function createPanelWindow(file, options) {
+function createPanelWindow(file, { query, ...options }) {
     const win = new BrowserWindow({
         show: false,
         titleBarStyle: 'hiddenInset',
@@ -404,7 +403,7 @@ function createPanelWindow(file, options) {
         webPreferences,
         ...options
     });
-    win.loadFile(file);
+    win.loadFile(file, query ? { query } : undefined);
     win.once('ready-to-show', () => {
         win.show();
         syncDock();
@@ -424,45 +423,40 @@ function nativeThemeBackground() {
 
 function syncDock() {
     if (!app.dock) return;
-    const hasPanel = [insightsWindow, onboardingWindow, settingsWindow].some((w) => w && !w.isDestroyed());
+    const hasPanel = [panelWindow, onboardingWindow].some((w) => w && !w.isDestroyed());
     if (hasPanel) app.dock.show();
     else app.dock.hide();
 }
 
-const SETTINGS_SIZE = { width: 440, height: 720 };
+const PANEL_VIEWS = ['day', 'trends', 'settings'];
 
-// Opens beside the orb, so you can watch it respond as you change things.
-function settingsPosition() {
-    const anchor = meterWindow && !meterWindow.isDestroyed() && meterWindow.isVisible()
-        ? meterWindow.getBounds()
-        : { ...defaultMeterPosition(), width: METER_SIZE, height: METER_SIZE };
-    const area = screen.getDisplayMatching(anchor).workArea;
-    const height = Math.min(SETTINGS_SIZE.height, area.height - 24);
-    const gap = 8;
-    const left = anchor.x - SETTINGS_SIZE.width - gap;
-    const x = left >= area.x ? left : Math.min(anchor.x + anchor.width + gap, area.x + area.width - SETTINGS_SIZE.width);
-    const y = Math.min(Math.max(anchor.y, area.y), area.y + area.height - height);
-    return { x: Math.round(Math.max(x, area.x)), y: Math.round(y), width: SETTINGS_SIZE.width, height };
-}
-
-function openSettings() {
-    if (settingsWindow) {
-        settingsWindow.show();
-        settingsWindow.focus();
+/**
+ * Opens the main window on a given view, or brings it forward and switches
+ * to that view if it is already open. `share` also raises the share card.
+ */
+function openPanel(view = 'day', { share = false } = {}) {
+    if (!PANEL_VIEWS.includes(view)) view = 'day';
+    if (panelWindow) {
+        panelWindow.show();
+        panelWindow.focus();
+        panelWindow.webContents.send('panel:show', { view, share });
         return;
     }
-    settingsWindow = createPanelWindow('src/settings.html', {
-        ...settingsPosition(),
-        minWidth: SETTINGS_SIZE.width,
-        maxWidth: SETTINGS_SIZE.width,
-        minHeight: 420,
-        maximizable: false,
-        title: 'Sound Meter Settings'
+    panelWindow = createPanelWindow('src/panel.html', {
+        width: 1140,
+        height: 760,
+        minWidth: 760,
+        minHeight: 560,
+        title: 'Sound Meter',
+        query: share ? { view, share: '1' } : { view }
     });
-    settingsWindow.on('closed', () => {
-        settingsWindow = null;
+    panelWindow.on('closed', () => {
+        panelWindow = null;
     });
 }
+
+const openInsights = ({ share = false } = {}) => openPanel(share ? 'trends' : 'day', { share });
+const openSettings = () => openPanel('settings');
 
 function resetMeterPosition() {
     updateSettings({ position: null });
@@ -476,34 +470,10 @@ const SETTINGS_ACTIONS = {
     'relearn': () => recalibrate(),
     'reset-position': () => resetMeterPosition(),
     'launch-at-login': (value) => setLaunchAtLogin(value === true),
-    'open-insights': () => openInsights(),
     'check-updates': () => checkForUpdates(true),
     'restart-to-update': () => { if (autoUpdater && runtime.update.status === 'ready') autoUpdater.quitAndInstall(); },
-    'close': () => { if (settingsWindow) settingsWindow.close(); },
     'quit': () => app.quit()
 };
-
-function openInsights({ share = false } = {}) {
-    if (insightsWindow) {
-        insightsWindow.show();
-        insightsWindow.focus();
-        if (share) insightsWindow.webContents.send('insights:share');
-        return;
-    }
-    insightsWindow = createPanelWindow('src/insights.html', {
-        width: 980,
-        height: 720,
-        minWidth: 720,
-        minHeight: 560,
-        title: 'Sound Meter Insights'
-    });
-    if (share) {
-        insightsWindow.webContents.once('did-finish-load', () => insightsWindow.webContents.send('insights:share'));
-    }
-    insightsWindow.on('closed', () => {
-        insightsWindow = null;
-    });
-}
 
 function openOnboarding() {
     if (onboardingWindow) {
@@ -822,8 +792,8 @@ function registerIpc() {
         if (settings.get('nudge') && sample && nudger.sample(sample.avg)) {
             notify('You’re getting loud', 'You’ve been above your limit for a little while.');
         }
-        if (insightsWindow && !insightsWindow.isDestroyed()) {
-            insightsWindow.webContents.send('history:sample', sample);
+        if (panelWindow && !panelWindow.isDestroyed()) {
+            panelWindow.webContents.send('history:sample', sample);
         }
     });
 
@@ -916,16 +886,16 @@ function registerIpc() {
     });
     ipcMain.handle('share:more', (_event, dataUrl) => {
         const image = shareImage(dataUrl);
-        if (!share || !image || !insightsWindow) return false;
+        if (!share || !image || !panelWindow) return false;
         const file = path.join(app.getPath('temp'), 'My week on Shhh.it.png');
         fs.writeFileSync(file, image.toPNG());
-        new ShareMenu({ texts: [share.caption], urls: [share.url], filePaths: [file] }).popup({ window: insightsWindow });
+        new ShareMenu({ texts: [share.caption], urls: [share.url], filePaths: [file] }).popup({ window: panelWindow });
         return true;
     });
     ipcMain.handle('share:save', async (_event, dataUrl) => {
         const image = shareImage(dataUrl);
         if (!image) return false;
-        const { canceled, filePath } = await dialog.showSaveDialog(insightsWindow, {
+        const { canceled, filePath } = await dialog.showSaveDialog(panelWindow, {
             title: 'Save your week',
             defaultPath: path.join(app.getPath('downloads'), 'My week on Shhh.it.png'),
             filters: [{ name: 'PNG image', extensions: ['png'] }]
@@ -936,7 +906,7 @@ function registerIpc() {
     });
 
     ipcMain.handle('history:export', async () => {
-        const { canceled, filePath } = await dialog.showSaveDialog(insightsWindow, {
+        const { canceled, filePath } = await dialog.showSaveDialog(panelWindow, {
             title: 'Export history',
             defaultPath: path.join(app.getPath('downloads'), 'sound-meter-history.csv'),
             filters: [{ name: 'CSV', extensions: ['csv'] }]
@@ -948,7 +918,7 @@ function registerIpc() {
     });
 
     ipcMain.handle('history:clear', async () => {
-        const { response } = await dialog.showMessageBox(insightsWindow, {
+        const { response } = await dialog.showMessageBox(panelWindow, {
             type: 'warning',
             buttons: ['Delete History', 'Cancel'],
             defaultId: 1,

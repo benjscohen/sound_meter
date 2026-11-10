@@ -54,5 +54,5 @@ contextBridge.exposeInMainWorld('soundMeter', {
     exportHistory: () => ipcRenderer.invoke('history:export'),
     clearHistory: () => ipcRenderer.invoke('history:clear'),
     onSample: (callback) => subscribe('history:sample', callback),
-    onShareRequest: (callback) => subscribe('insights:share', callback)
+    onShow: (callback) => subscribe('panel:show', callback)
 });

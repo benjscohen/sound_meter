@@ -1,6 +1,7 @@
-// Insights window. "Day" shows one day in detail; "Trends" shows patterns
-// across the last few weeks. All numbers are computed in the main process
-// (src/main/analytics.js); this file only draws them.
+// The main window's navigation and its two Insights views. "Day" shows one
+// day in detail; "Trends" shows patterns across the last few weeks. The
+// third view, Settings, lives in settings.js. All numbers are computed in
+// the main process (src/main/analytics.js); this file only draws them.
 (() => {
     const api = window.soundMeter;
     const V = window.AudioVisualizer;
@@ -13,7 +14,10 @@
     const MAX_ROWS = 6;
     const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    let view = 'day';
+    const VIEWS = { day: 'Day', trends: 'Trends', settings: 'Settings' };
+    // Which view to open on is chosen by whoever opened the window.
+    let view = new URLSearchParams(location.search).get('view');
+    if (!VIEWS[view]) view = 'day';
     let days = [];          // Day summaries, newest first
     let selected = null;    // 'YYYY-MM-DD'
     let dayData = null;     // Result of api.getDay
@@ -516,13 +520,17 @@
 
     function showView() {
         const hasData = days.length > 0;
-        $('empty').hidden = hasData;
+        const insights = view !== 'settings';
+        $('title').textContent = VIEWS[view];
+        $('empty').hidden = !insights || hasData;
         $('view-day').hidden = !hasData || view !== 'day';
         $('view-trends').hidden = !hasData || view !== 'trends';
-        $('tabs').hidden = !hasData;
+        $('view-settings').hidden = insights;
+        $('insights-actions').hidden = !insights;
         $('share').hidden = !hasData;
         $('export').disabled = !hasData;
         $('clear').disabled = !hasData;
+        if (!insights) $('subtitle').textContent = 'Changes apply as you make them.';
         document.querySelectorAll('#tabs button').forEach((button) => {
             button.setAttribute('aria-pressed', String(button.dataset.view === view));
         });
@@ -531,6 +539,7 @@
     async function load() {
         days = await api.listDays(DAYS_SHOWN + 1);
         showView();
+        if (view === 'settings') return;
         if (!days.length) {
             $('subtitle').textContent = 'How your day sounded';
             return;
@@ -560,12 +569,17 @@
 
     /* -------------------------------------------------------------- boot */
 
+    function go(next) {
+        if (!VIEWS[next] || next === view) return load();
+        view = next;
+        document.querySelector('.page').scrollTop = 0;
+        showView();
+        return load();
+    }
+
     $('tabs').addEventListener('click', (event) => {
         const button = event.target.closest('button[data-view]');
-        if (!button || button.dataset.view === view) return;
-        view = button.dataset.view;
-        showView();
-        load();
+        if (button) go(button.dataset.view);
     });
 
     // Share: a card of the week's totals plus a link that shows the same
@@ -606,12 +620,15 @@
         $('share-copy-link').focus();
     }
     $('share').addEventListener('click', openShare);
-    // The weekly recap notification lands here: show the week, ready to share.
-    api.onShareRequest(async () => {
-        view = 'trends';
-        await load();
-        openShare();
+    // The orb, the menu and notifications all open this one window and say
+    // where to land. The weekly recap asks for Trends with the share card up.
+    api.onShow(async ({ view: wanted, share }) => {
+        await go(wanted);
+        if (share) openShare();
     });
+    if (new URLSearchParams(location.search).get('share')) {
+        window.addEventListener('load', () => openShare(), { once: true });
+    }
     $('share-close').addEventListener('click', () => $('share-dialog').close());
     $('share-dialog').addEventListener('click', (event) => {
         if (event.target === $('share-dialog')) $('share-dialog').close(); // Click on the backdrop

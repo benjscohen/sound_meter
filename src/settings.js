@@ -1,7 +1,7 @@
-// Settings panel. Everything applies the moment it is changed, and the
-// panel stays open, so several things can be adjusted in one go while
-// watching the orb respond. The page is built once; `sync` then keeps every
-// control in step with the app's state (which can also change from the menu).
+// The Settings view of the main window. Everything applies the moment it is
+// changed, so several things can be adjusted in one go while watching the
+// orb respond. The controls are built once; `sync` then keeps every one in
+// step with the app's state (which can also change from the menu).
 (() => {
     const api = window.soundMeter;
     const $ = (id) => document.getElementById(id);
@@ -23,7 +23,7 @@
     };
     const act = async (name, value) => {
         await api.settingsAction(name, value);
-        if (name !== 'close' && name !== 'quit' && name !== 'open-insights') saved();
+        if (name !== 'quit') saved();
     };
 
     /* ---------------------------------------------------------- controls */
@@ -62,10 +62,6 @@
         // Turning it on may bring up the macOS permission prompt.
         await (event.target.checked ? api.connectCalendar() : api.disconnectCalendar());
         saved();
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') act('close');
     });
 
     /* -------------------------------------------------------------- sync */

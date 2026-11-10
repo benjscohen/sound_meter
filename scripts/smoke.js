@@ -112,7 +112,7 @@ async function shoot(win, name) {
 }
 
 function find(file) {
-    return BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith(file));
+    return BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().split('?')[0].endsWith(file));
 }
 
 async function until(check, label, timeout = 8000) {
@@ -236,8 +236,10 @@ async function run() {
     // Clicking it opens Settings, which stays open while several things are
     // changed, each applying to the orb straight away.
     await js(meter, `document.getElementById('options').click()`);
-    const panel = await until(() => find('settings.html'), 'settings panel');
-    await until(() => js(panel, `document.querySelectorAll('#sensitivity button').length === 6`), 'settings to load');
+    const panel = await until(() => find('panel.html'), 'main window');
+    await until(() => js(panel, `!document.getElementById('view-settings').hidden
+        && document.querySelectorAll('#sensitivity button').length === 6`), 'settings to load');
+    if (await js(panel, `document.getElementById('title').textContent`) !== 'Settings') throw new Error('The orb should open on Settings');
     if (outside.menus !== 0) throw new Error('Clicking the orb should open Settings, not the menu');
     const orbStyle = () => js(meter, `(() => {
         const orb = getComputedStyle(document.getElementById('orb'));
@@ -256,7 +258,7 @@ async function run() {
     const chosen = await until(() => js(panel, `window.soundMeter.getState().then((s) =>
         s.settings.sensitivity === 70 && s.settings.sensitivityMode === 'manual' && s.settings.nudge && s.settings)`), 'settings to save');
     if (chosen.orbSize !== 'large' || chosen.orbOpacity !== 0.5 || !chosen.symbols) throw new Error('Earlier changes were lost');
-    if (!find('settings.html')) throw new Error('Settings must stay open while you change things');
+    if (!find('panel.html')) throw new Error('Settings must stay open while you change things');
     // The panel reflects reality: its controls follow the saved state.
     const shown = await js(panel, `({
         size: document.querySelector('[data-choice="orbSize"] [aria-pressed="true"]').dataset.value,
@@ -271,7 +273,7 @@ async function run() {
     }
     await wait(300);
     await shoot(panel, '6d-settings');
-    await js(panel, `window.scrollTo(0, document.body.scrollHeight)`);
+    await js(panel, `document.querySelector('.page').scrollTop = 99999`);
     await shoot(panel, '6e-settings-bottom');
 
     // Pause from the panel, then put everything back the way it was.
@@ -286,8 +288,16 @@ async function run() {
     await press('input[data-setting="nudge"]');
     await press('#sensitivity [data-value="210"]');
     await until(() => js(panel, `window.soundMeter.getState().then((s) => s.settings.sensitivity === 210 && !s.settings.nudge && !s.settings.symbols)`), 'settings restored');
-    await js(panel, `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
-    await until(() => !find('settings.html'), 'Escape to close settings');
+
+    // Insights and Settings are one window: asking for Insights switches the
+    // view where it is, it does not open a second window.
+    ipcMain.emit('insights:open', {});
+    await until(() => js(panel, `!document.getElementById('view-day').hidden && document.getElementById('view-settings').hidden`), 'switch to Day in place');
+    const panels = BrowserWindow.getAllWindows().filter((w) => w.webContents.getURL().includes('panel.html'));
+    if (panels.length !== 1) throw new Error(`Expected one main window, found ${panels.length}`);
+    if (await js(panel, `document.getElementById('insights-actions').hidden`)) throw new Error('Insights actions should show on Day');
+    await js(panel, `document.querySelector('#tabs [data-view="settings"]').click()`);
+    await until(() => js(panel, `!document.getElementById('view-settings').hidden && document.getElementById('insights-actions').hidden`), 'sidebar to switch back to Settings');
 
     // Right-click keeps the quick menu.
     await js(meter, `document.getElementById('orb').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))`);
@@ -383,7 +393,8 @@ async function run() {
     const scrollTo = (id) => js(insights, `document.getElementById(${JSON.stringify(id)}).scrollIntoView({ block: 'start' })`);
 
     ipcMain.emit('insights:open', {});
-    let insights = await until(() => find('insights.html'), 'insights window');
+    let insights = await until(() => find('panel.html'), 'main window');
+    await until(() => visible('view-day'), 'Day view');
     await until(() => js(insights, `document.querySelectorAll('.day:not(:disabled)').length > 5`), 'seeded days');
     await until(() => js(insights, `document.querySelectorAll('#chart-svg path.avg').length > 0`), 'chart');
     if ((await text('#day-metrics .metric')).length !== 4) throw new Error('Day metrics missing');
@@ -445,7 +456,7 @@ async function run() {
     await shoot(insights, '11-insights-trends-lists');
 
     // Share: a card of the week's totals and a link that unfurls to it.
-    await js(insights, `window.scrollTo(0, 0)`);
+    await js(insights, `document.querySelector('.page').scrollTop = 0`);
     await js(insights, `document.getElementById('share').click()`);
     await until(() => js(insights, `document.getElementById('share-dialog').open`), 'share dialog');
     const link = (await text('#share-url'))[0];
@@ -506,9 +517,9 @@ async function run() {
         if (recaps()[0].body !== 'See how last week sounded, and share it if you like.') throw new Error(`Odd recap: ${recaps()[0].body}`);
 
         insights.close();
-        await until(() => !find('insights.html'), 'insights to close');
+        await until(() => !find('panel.html'), 'main window to close');
         recaps()[0].emit('click');
-        insights = await until(() => find('insights.html'), 'recap to reopen Insights');
+        insights = await until(() => find('panel.html'), 'recap to reopen the main window');
         await until(() => js(insights, `document.getElementById('share-dialog').open`), 'recap to open the share card');
         if (!(await visible('view-trends'))) throw new Error('Recap should land on Trends');
         await js(insights, `document.getElementById('share-close').click()`);
@@ -544,7 +555,12 @@ async function run() {
     await until(() => js(insights, `!document.getElementById('empty').hidden`), 'empty state');
     if (fs.readdirSync(path.join(profile, 'history')).length) throw new Error('History files were not deleted');
     await wait(400);
-    if (await visible('tabs')) throw new Error('Tabs should hide with no history');
+    // Settings is still one click away even with no history.
+    await js(insights, `document.querySelector('#tabs [data-view="settings"]').click()`);
+    await until(() => visible('view-settings'), 'settings with no history');
+    if (await visible('empty')) throw new Error('The empty state belongs to Insights, not Settings');
+    await js(insights, `document.querySelector('#tabs [data-view="day"]').click()`);
+    await until(() => visible('empty'), 'empty state on Day');
     await shoot(insights, '13-insights-empty');
 }
 

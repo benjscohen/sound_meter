@@ -407,11 +407,6 @@ h2 {
 
 /* --- Tabs and columns --------------------------------------------------- */
 
-.tabs {
-    -webkit-app-region: no-drag;
-    min-width: 150px;
-}
-
 .columns {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

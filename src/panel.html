@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+    <title>Sound Meter</title>
+    <link rel="stylesheet" href="shared/theme.css">
+    <link rel="stylesheet" href="insights.css">
+    <link rel="stylesheet" href="settings.css">
+    <link rel="stylesheet" href="panel.css">
+</head>
+
+<body>
+    <div class="titlebar"></div>
+
+    <div class="app">
+        <!-- One window for everything: how you sounded, and how the orb behaves. -->
+        <aside class="side">
+            <div class="brand"><span class="orb"></span>Sound Meter</div>
+            <nav id="tabs" aria-label="Sections">
+                <button type="button" data-view="day" aria-pressed="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>Day
+                </button>
+                <button type="button" data-view="trends" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V10m5.3 9V5m5.4 14v-6M20 19V8" /></svg>Trends
+                </button>
+                <button type="button" data-view="settings" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9m5 0h2M4 17h2m5 0h9" /><circle cx="15.5" cy="7" r="2.2" /><circle cx="8.5" cy="17" r="2.2" /></svg>Settings
+                </button>
+            </nav>
+            <div class="side-foot">
+                <span class="live" id="live" hidden><i></i><span id="live-text">Listening</span></span>
+            </div>
+        </aside>
+
+        <main class="page">
+            <header class="top">
+                <div>
+                    <h1 id="title">Day</h1>
+                    <p class="sub" id="subtitle">How your day sounded</p>
+                </div>
+                <div class="top-actions">
+                    <span class="saved" id="saved" role="status">Saved</span>
+                    <div class="actions" id="insights-actions">
+                <button class="btn" id="share" type="button" title="Share your week as an image">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 15V4m0 0L8 8m4-4 4 4M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6" />
+                    </svg>
+                    Share
+                </button>
+                <button class="btn" id="export" type="button" title="Export history as CSV">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
+                    </svg>
+                    Export
+                </button>
+                <button class="btn ghost" id="clear" type="button">Clear</button>
+                    </div>
+                </div>
+            </header>
+
+    <section class="empty card" id="empty" hidden>
+                <div class="orb"></div>
+                <h2>Your history starts now</h2>
+                <p>Leave Sound Meter running while you work. After a minute or two you’ll see how loud you’ve been,
+                    when your loudest moments were, and how today compares.</p>
+                <p class="fine">Only loudness numbers are saved, on this Mac. Never audio.</p>
+            </section>
+    
+            <!-- Day: one day in detail -->
+            <div class="view" id="view-day" hidden>
+                <section class="metrics" id="day-metrics"></section>
+    
+                <section class="card panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2 id="chart-title">Today</h2>
+                            <p class="sub" id="chart-sub"></p>
+                        </div>
+                        <ul class="legend">
+                            <li><i class="k-avg"></i>Average</li>
+                            <li><i class="k-peak"></i>Peak</li>
+                            <li><i class="k-loud"></i>Too loud</li>
+                        </ul>
+                    </div>
+                    <div class="chart" id="chart">
+                        <svg id="chart-svg" role="img" aria-label="Loudness through the day"></svg>
+                        <div class="tooltip" id="tooltip" hidden></div>
+                    </div>
+                </section>
+    
+                <div class="columns">
+                    <section class="card panel" id="day-meetings"></section>
+                    <section class="card panel" id="day-apps"></section>
+                </div>
+    
+                <section class="card panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Last 14 days</h2>
+                            <p class="sub">Minutes spent too loud each day. Select a day to see it above.</p>
+                        </div>
+                    </div>
+                    <div class="days" id="days" role="listbox" aria-label="Days"></div>
+                </section>
+            </div>
+    
+            <!-- Trends: patterns across weeks -->
+            <div class="view" id="view-trends" hidden>
+                <section class="metrics" id="trend-metrics"></section>
+    
+                <section class="card panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>When you get loud</h2>
+                            <p class="sub" id="heatmap-sub"></p>
+                        </div>
+                        <div class="scale" aria-hidden="true"><span>Calm</span><i></i><span>Loud</span></div>
+                    </div>
+                    <div class="heatmap" id="heatmap"></div>
+                </section>
+    
+                <div class="columns">
+                    <section class="card panel" id="trend-meetings"></section>
+                    <section class="card panel" id="trend-people"></section>
+                    <section class="card panel" id="trend-apps"></section>
+                </div>
+            </div>
+
+            <!-- Settings: everything applies as you change it -->
+            <div class="view" id="view-settings" hidden>
+            <!-- Listening -->
+            <section class="group" aria-labelledby="g-listening">
+                <h2 id="g-listening">Listening</h2>
+                <div class="card settings">
+                    <div class="setting">
+                        <div class="status"><i id="status-dot"></i><span id="status-text">Listening</span></div>
+                        <button class="btn" id="pause" type="button">Pause</button>
+                    </div>
+                    <label class="setting" for="mic">
+                        <span class="label"><b>Microphone</b></span>
+                        <select id="mic"></select>
+                    </label>
+                    <div class="setting stacked">
+                        <span class="label">
+                            <b>Sensitivity</b>
+                            <small id="sensitivity-hint"></small>
+                        </span>
+                        <div class="segmented" id="sensitivity" role="group" aria-label="Sensitivity"></div>
+                        <button class="link" id="relearn" type="button" hidden>Relearn my voice</button>
+                    </div>
+                    <label class="setting" id="calls-row">
+                        <span class="label">
+                            <b>Listen only during calls</b>
+                            <small id="calls-hint">Hide the orb and release the microphone unless another app is using
+                                it.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" data-setting="onlyDuringCalls"><span></span></span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Orb -->
+            <section class="group" aria-labelledby="g-orb">
+                <h2 id="g-orb">Orb</h2>
+                <div class="card settings">
+                    <div class="setting">
+                        <span class="label"><b>Size</b></span>
+                        <div class="segmented" data-choice="orbSize" role="group" aria-label="Size">
+                            <button type="button" data-value="small">Small</button>
+                            <button type="button" data-value="medium">Medium</button>
+                            <button type="button" data-value="large">Large</button>
+                        </div>
+                    </div>
+                    <div class="setting">
+                        <span class="label"><b>Opacity</b></span>
+                        <div class="segmented" data-choice="orbOpacity" role="group" aria-label="Opacity">
+                            <button type="button" data-value="1">100%</button>
+                            <button type="button" data-value="0.75">75%</button>
+                            <button type="button" data-value="0.5">50%</button>
+                        </div>
+                    </div>
+                    <label class="setting">
+                        <span class="label">
+                            <b>Level symbols</b>
+                            <small>Arrows in the orb as it gets louder, so it reads without colour.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" data-setting="symbols"><span></span></span>
+                    </label>
+                    <div class="setting">
+                        <span class="label">
+                            <b>Position</b>
+                            <small>Drag the orb anywhere. This puts it back in the top-right corner.</small>
+                        </span>
+                        <button class="btn" type="button" data-action="reset-position">Reset</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications -->
+            <section class="group" aria-labelledby="g-notifications">
+                <h2 id="g-notifications">Notifications</h2>
+                <div class="card settings">
+                    <label class="setting">
+                        <span class="label">
+                            <b>Nudge me when I’m loud</b>
+                            <small>A quiet notification after you’ve been above your limit for a while.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" data-setting="nudge"><span></span></span>
+                    </label>
+                    <label class="setting">
+                        <span class="label">
+                            <b>Weekly recap</b>
+                            <small>One notification when your week is ready. Never during a call.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" data-setting="weeklyRecap"><span></span></span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Insights -->
+            <section class="group" aria-labelledby="g-insights">
+                <h2 id="g-insights">Calendar</h2>
+                <div class="card settings">
+                    <label class="setting" id="calendar-row">
+                        <span class="label">
+                            <b>Show meetings from my calendar</b>
+                            <small>Read on this Mac while Insights is open. Never stored or sent.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" id="calendar"><span></span></span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- General -->
+            <section class="group" aria-labelledby="g-general">
+                <h2 id="g-general">General</h2>
+                <div class="card settings">
+                    <label class="setting">
+                        <span class="label"><b>Launch at login</b></span>
+                        <span class="switch"><input type="checkbox" id="launch-at-login"><span></span></span>
+                    </label>
+                    <div class="setting">
+                        <span class="label">
+                            <b>Updates</b>
+                            <small id="version"></small>
+                        </span>
+                        <button class="btn" id="update" type="button">Check for updates</button>
+                    </div>
+                </div>
+            </section>
+
+                <footer class="bottom">
+                    <button class="btn ghost" type="button" data-action="quit">Quit Sound Meter</button>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <dialog id="share-dialog" aria-labelledby="share-title">
+        <div class="dialog-head">
+            <div>
+                <h2 id="share-title">Share your week</h2>
+                <p class="sub">Totals only. No meeting names, no people, nothing stored online.</p>
+            </div>
+            <button class="btn ghost close" id="share-close" type="button" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+
+        <canvas id="share-canvas" width="1200" height="630" aria-label="Preview of your share card"></canvas>
+
+        <div class="share-link">
+            <span id="share-url" title="This link shows your card wherever you paste it"></span>
+            <button class="btn primary" id="share-copy-link" type="button">Copy link</button>
+        </div>
+
+        <div class="share-row">
+            <span class="share-label">Post to</span>
+            <div class="chips" id="share-destinations"></div>
+        </div>
+
+        <div class="dialog-actions">
+            <span class="copied" id="share-status" role="status"></span>
+            <button class="btn" id="share-save" type="button">Save image…</button>
+            <button class="btn" id="share-copy-image" type="button">Copy image</button>
+        </div>
+    </dialog>
+
+    <script src="utils/audio-visualizer.js"></script>
+    <script src="share-card.js"></script>
+    <script src="insights.js"></script>
+    <script src="settings.js"></script>
+</body>
+
+</html>
