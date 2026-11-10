@@ -1,0 +1,285 @@
+/* Design tokens and base components shared by the Insights and welcome windows. */
+:root {
+    color-scheme: light dark;
+
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --ink: #0a2540;
+    --ink-2: #425466;
+    --ink-3: #8792a2;
+    --line: #e3e8ee;
+    --focus: rgba(48, 209, 88, 0.35);
+
+    --green: #1fb85a;
+    --green-soft: rgba(48, 209, 88, 0.14);
+    --amber: #e5a500;
+    --amber-soft: rgba(255, 204, 0, 0.18);
+    --red: #e5484d;
+    --red-soft: rgba(255, 69, 58, 0.13);
+
+    --orb-green: 48 209 88;
+    --orb-amber: 255 204 0;
+    --orb-red: 255 69 58;
+
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow-sm: 0 1px 2px rgba(10, 37, 64, 0.06);
+    --shadow: 0 1px 1px rgba(10, 37, 64, 0.04), 0 8px 24px -8px rgba(10, 37, 64, 0.14);
+    --shadow-lg: 0 2px 4px rgba(10, 37, 64, 0.05), 0 24px 48px -16px rgba(10, 37, 64, 0.22);
+
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0f1216;
+        --surface: #181c22;
+        --surface-2: #1f242c;
+        --ink: #f2f5f9;
+        --ink-2: #b1bbc8;
+        --ink-3: #74808f;
+        --line: #2a313b;
+
+        --green: #30d158;
+        --amber: #ffcc00;
+        --red: #ff6961;
+
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+        --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    cursor: default;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+
+/* The hidden-inset title bar: keep the top strip draggable. */
+.titlebar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 44px;
+    -webkit-app-region: drag;
+    z-index: 5;
+}
+
+.btn {
+    -webkit-app-region: no-drag;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink);
+    font: 500 13px/1 var(--font);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), background 0.15s, opacity 0.15s;
+}
+
+.btn:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.btn.primary {
+    height: 42px;
+    padding: 0 20px;
+    border-color: transparent;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn.ghost {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-2);
+}
+
+.btn.ghost:hover {
+    background: var(--surface-2);
+    transform: none;
+}
+
+.btn svg {
+    width: 15px;
+    height: 15px;
+    flex: none;
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+/* Segmented control */
+.segmented {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+}
+
+.segmented button {
+    appearance: none;
+    border: 0;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-2);
+    font: 500 12.5px/1 var(--font);
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.segmented button:hover {
+    color: var(--ink);
+}
+
+.segmented button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm), 0 0 0 1px var(--line);
+}
+
+.segmented button:focus-visible {
+    outline: 3px solid var(--focus);
+}
+
+/* Toggle switch */
+.switch {
+    position: relative;
+    flex: none;
+    width: 38px;
+    height: 22px;
+}
+
+.switch input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+}
+
+.switch span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--line);
+    transition: background 0.2s;
+    pointer-events: none;
+}
+
+.switch span::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s var(--ease);
+}
+
+.switch input:checked + span {
+    background: rgb(var(--orb-green));
+}
+
+.switch input:checked + span::after {
+    transform: translateX(16px);
+}
+
+.switch input:focus-visible + span {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+/* The orb, reused wherever we preview the meter. */
+.orb {
+    --c: var(--orb-green);
+    --s: 1;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    transform: scale(var(--s));
+    background:
+        radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0) 46%),
+        radial-gradient(circle at 50% 55%, rgb(var(--c) / 0.96), rgb(var(--c) / 0.74));
+    box-shadow:
+        0 0 22px rgb(var(--c) / 0.55),
+        inset 0 -6px 12px rgb(0 0 0 / 0.12),
+        inset 0 0 0 1px rgb(255 255 255 / 0.28);
+    will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

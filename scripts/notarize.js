@@ -7,6 +7,13 @@ exports.default = async function notarizing(context) {
         return;
     }
 
+    // Local/unsigned builds: nothing to notarize.
+    const { APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID } = process.env;
+    if (!APPLE_ID || !APPLE_APP_SPECIFIC_PASSWORD || !APPLE_TEAM_ID) {
+        console.log('  • skipping notarization (Apple credentials not set)');
+        return;
+    }
+
     const appName = context.packager.appInfo.productFilename;
 
     console.log(`  • notarizing      app=${appName}`);
@@ -14,8 +21,8 @@ exports.default = async function notarizing(context) {
     return await notarize({
         appBundleId: 'com.benjscohen.soundmeter',
         appPath: `${appOutDir}/${appName}.app`,
-        appleId: process.env.APPLE_ID,
-        appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
-        teamId: process.env.APPLE_TEAM_ID
+        appleId: APPLE_ID,
+        appleIdPassword: APPLE_APP_SPECIFIC_PASSWORD,
+        teamId: APPLE_TEAM_ID
     });
 };

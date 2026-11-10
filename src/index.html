@@ -3,19 +3,28 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
     <title>Sound Meter</title>
+    <link rel="stylesheet" href="shared/theme.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <div id="app-container">
-        <div id="meter-circle"></div>
-        <div id="controls">
-            <select id="mic-select"></select>
-            <select id="sensitivity-select"></select>
-        </div>
+    <div id="stage" data-state="starting">
+        <button id="orb" class="orb hit" type="button" aria-label="Sound Meter. Click for options, drag to move.">
+            <span class="ripple" aria-hidden="true"></span>
+            <svg class="glyph glyph-paused" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="6" width="3.6" height="12" rx="1.2" />
+                <rect x="13.4" y="6" width="3.6" height="12" rx="1.2" />
+            </svg>
+            <svg class="glyph glyph-denied" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9.5 9.5V11a2.5 2.5 0 0 0 4 2M14.5 9V6.5a2.5 2.5 0 0 0-4.6-1.3" />
+                <path d="M7 11a5 5 0 0 0 8 4M17 11c0 .5-.1 1-.2 1.5M12 16v2.5M9.5 18.5h5M5 4l14 16" />
+            </svg>
+        </button>
+        <div id="pill" role="status" aria-live="polite"></div>
     </div>
+    <script src="utils/audio-visualizer.js"></script>
     <script src="renderer.js"></script>
 </body>
 

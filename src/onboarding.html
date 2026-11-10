@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+    <title>Welcome to Sound Meter</title>
+    <link rel="stylesheet" href="shared/theme.css">
+    <link rel="stylesheet" href="onboarding.css">
+</head>
+
+<body>
+    <div class="titlebar"></div>
+
+    <main id="wizard" data-step="0">
+        <div class="hero" aria-hidden="true">
+            <div class="halo"></div>
+            <div class="orb" id="preview-orb"></div>
+            <div class="zone" id="zone-label"></div>
+        </div>
+
+        <div class="steps">
+            <section class="step" data-index="0">
+                <h1>Know when you’re getting loud.</h1>
+                <p>Sound Meter is a small orb that floats above your work. It stays green while you’re speaking
+                    comfortably and warms to red when you’re not.</p>
+            </section>
+
+            <section class="step" data-index="1">
+                <h1>Allow microphone access</h1>
+                <p>Sound Meter only measures how loud you are. Audio is never recorded, stored, or sent anywhere —
+                    everything happens on this Mac.</p>
+                <div class="callout" id="mic-callout" hidden>
+                    <svg class="icon-warn" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 9v4m0 3.5v.01M10.3 4.3 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+                    </svg>
+                    <svg class="icon-ok" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8 12.5 2.7 2.7L16 9.5" />
+                    </svg>
+                    <span id="mic-callout-text"></span>
+                </div>
+            </section>
+
+            <section class="step" data-index="2">
+                <h1>Tune it to your voice</h1>
+                <p id="calibrate-copy">Say a sentence the way you’d normally talk. Pick the setting where the orb
+                    stays green — and only turns red when you raise your voice.</p>
+                <div class="segmented" id="sensitivity" role="group" aria-label="Sensitivity"></div>
+                <p class="hint" id="sensitivity-hint"></p>
+            </section>
+
+            <section class="step" data-index="3">
+                <h1>You’re all set</h1>
+                <ul class="tips">
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 3.5v9.2l-2.2-1.6a1.4 1.4 0 0 0-1.9 2l3.9 5.2a4 4 0 0 0 3.2 1.7h2.5a4 4 0 0 0 4-4v-5.2a1.5 1.5 0 0 0-3 0m0 0V9.3a1.5 1.5 0 0 0-3 0m0 0V8.6a1.5 1.5 0 0 0-3 0" />
+                        </svg>
+                        <span><b>Click the orb</b> to switch microphones, change sensitivity, or pause.</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3" />
+                        </svg>
+                        <span><b>Drag it anywhere.</b> It floats above every window, even full-screen calls.</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 19V10m5.3 9V5m5.4 14v-6M20 19V8" />
+                        </svg>
+                        <span><b>Open Insights</b> from the menu to see how your day sounded.</span>
+                    </li>
+                </ul>
+                <label class="toggle-row card">
+                    <span>
+                        <b>Launch at login</b>
+                        <small>Sound Meter is ready whenever your Mac is.</small>
+                    </span>
+                    <span class="switch"><input type="checkbox" id="launch-at-login" checked><span></span></span>
+                </label>
+            </section>
+        </div>
+
+        <footer>
+            <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="actions">
+                <button class="btn ghost" id="secondary" type="button" hidden></button>
+                <button class="btn primary" id="primary" type="button">Get started</button>
+            </div>
+        </footer>
+    </main>
+
+    <script src="utils/audio-visualizer.js"></script>
+    <script src="onboarding.js"></script>
+</body>
+
+</html>

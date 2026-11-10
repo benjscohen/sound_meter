@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+    <title>Sound Meter Insights</title>
+    <link rel="stylesheet" href="shared/theme.css">
+    <link rel="stylesheet" href="insights.css">
+</head>
+
+<body>
+    <div class="titlebar"></div>
+
+    <div class="page">
+        <header class="top">
+            <div>
+                <h1>Insights</h1>
+                <p class="sub" id="subtitle">How your day sounded</p>
+            </div>
+            <div class="top-actions">
+                <span class="live" id="live" hidden><i></i><span id="live-text">Listening</span></span>
+                <button class="btn" id="export" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
+                    </svg>
+                    Export CSV
+                </button>
+                <button class="btn ghost" id="clear" type="button">Clear history</button>
+            </div>
+        </header>
+
+        <section class="empty card" id="empty" hidden>
+            <div class="orb"></div>
+            <h2>Your history starts now</h2>
+            <p>Leave Sound Meter running while you work. After a minute or two you’ll see how loud you’ve been,
+                when your loudest moments were, and how today compares.</p>
+            <p class="fine">Only loudness numbers are saved, on this Mac. Never audio.</p>
+        </section>
+
+        <div id="content" hidden>
+            <section class="metrics">
+                <article class="card metric">
+                    <h3>Loud time</h3>
+                    <p class="value" id="m-loud">–</p>
+                    <p class="note" id="m-loud-note"></p>
+                </article>
+                <article class="card metric">
+                    <h3>Average level</h3>
+                    <p class="value" id="m-avg">–</p>
+                    <p class="note" id="m-avg-note"></p>
+                </article>
+                <article class="card metric">
+                    <h3>Peak</h3>
+                    <p class="value" id="m-peak">–</p>
+                    <p class="note" id="m-peak-note"></p>
+                </article>
+                <article class="card metric">
+                    <h3>Time monitored</h3>
+                    <p class="value" id="m-time">–</p>
+                    <p class="note" id="m-time-note"></p>
+                </article>
+            </section>
+
+            <section class="card panel">
+                <div class="panel-head">
+                    <div>
+                        <h2 id="chart-title">Today</h2>
+                        <p class="sub" id="chart-sub"></p>
+                    </div>
+                    <ul class="legend">
+                        <li><i class="k-avg"></i>Average</li>
+                        <li><i class="k-peak"></i>Peak</li>
+                        <li><i class="k-loud"></i>Too loud</li>
+                    </ul>
+                </div>
+                <div class="chart" id="chart">
+                    <svg id="chart-svg" role="img" aria-label="Loudness through the day"></svg>
+                    <div class="tooltip" id="tooltip" hidden></div>
+                </div>
+            </section>
+
+            <section class="card panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>Last 14 days</h2>
+                        <p class="sub">Minutes spent too loud each day. Select a day to see it above.</p>
+                    </div>
+                </div>
+                <div class="days" id="days" role="listbox" aria-label="Days"></div>
+            </section>
+        </div>
+    </div>
+
+    <script src="utils/audio-visualizer.js"></script>
+    <script src="insights.js"></script>
+</body>
+
+</html>
