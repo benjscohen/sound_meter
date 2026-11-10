@@ -581,7 +581,7 @@
     }
     const cardImage = () => $('share-canvas').toDataURL('image/png');
 
-    $('share').addEventListener('click', async () => {
+    async function openShare() {
         const share = await api.share.prepare();
         if (!share) return;
         window.ShareCard.draw($('share-canvas'), share.card);
@@ -602,8 +602,15 @@
         $('share-destinations').replaceChildren(...chips, more);
 
         $('share-status').classList.remove('show');
-        $('share-dialog').showModal();
+        if (!$('share-dialog').open) $('share-dialog').showModal();
         $('share-copy-link').focus();
+    }
+    $('share').addEventListener('click', openShare);
+    // The weekly recap notification lands here: show the week, ready to share.
+    api.onShareRequest(async () => {
+        view = 'trends';
+        await load();
+        openShare();
     });
     $('share-close').addEventListener('click', () => $('share-dialog').close());
     $('share-dialog').addEventListener('click', (event) => {

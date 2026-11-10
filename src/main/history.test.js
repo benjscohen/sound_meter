@@ -169,6 +169,19 @@ describe('settings', () => {
         expect(reloaded.get('onboarded')).toBe(false);
     });
 
+    test('existing users keep their hand-picked sensitivity; new users get automatic', () => {
+        const file = path.join(dir, 'settings.json');
+        expect(createSettings(file).get('sensitivityMode')).toBe('auto');
+
+        fs.writeFileSync(file, JSON.stringify({ onboarded: true, sensitivity: 210 }));
+        const existing = createSettings(file);
+        expect(existing.get('sensitivityMode')).toBe('manual');
+        expect(existing.get('sensitivity')).toBe(210);
+
+        fs.writeFileSync(file, JSON.stringify({ onboarded: true, sensitivityMode: 'auto', calibrated: true, sensitivity: 123 }));
+        expect(createSettings(file).get('sensitivityMode')).toBe('auto');
+    });
+
     test('ignores unknown keys and corrupt files', () => {
         const file = path.join(dir, 'settings.json');
         fs.writeFileSync(file, 'nope');

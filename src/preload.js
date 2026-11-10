@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('soundMeter', {
     reportDevices: (devices) => ipcRenderer.send('meter:devices', devices),
     reportMicStatus: (status) => ipcRenderer.send('meter:mic-status', status),
     sendSample: (sample) => ipcRenderer.send('meter:sample', sample),
+    reportVoice: (voice) => ipcRenderer.send('meter:voice', voice),
+    onNotice: (callback) => subscribe('meter:notice', callback),
     openMenu: () => ipcRenderer.send('meter:menu'),
     setIgnoreMouse: (ignore) => ipcRenderer.send('meter:ignore-mouse', ignore),
     dragStart: () => ipcRenderer.send('meter:drag-start'),
@@ -49,5 +51,6 @@ contextBridge.exposeInMainWorld('soundMeter', {
     },
     exportHistory: () => ipcRenderer.invoke('history:export'),
     clearHistory: () => ipcRenderer.invoke('history:clear'),
-    onSample: (callback) => subscribe('history:sample', callback)
+    onSample: (callback) => subscribe('history:sample', callback),
+    onShareRequest: (callback) => subscribe('insights:share', callback)
 });

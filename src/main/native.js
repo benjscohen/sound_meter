@@ -84,9 +84,21 @@ function createNative({ helperPath, fixturesPath = null, ownBundleIds = [], run 
 
     const status = (value) => (CALENDAR_STATES.includes(value) ? value : 'unavailable');
 
-    async function micApp() {
-        const result = fixtures ? { apps: fixtures.micApps } : await helper(['mic-apps']);
-        return resolveMicApp(result && result.apps, ownBundleIds);
+    /**
+     * Who is on a call: { supported, app }. `supported` is false where macOS
+     * can't say which apps are using a microphone (before 14.2).
+     */
+    async function micState() {
+        let result;
+        if (fixtures) {
+            // Re-read each time so a test can start and end a "call".
+            const live = JSON.parse(fs.readFileSync(fixturesPath, 'utf8'));
+            result = { supported: live.micSupported !== false, apps: live.micApps };
+        } else {
+            result = await helper(['mic-apps']);
+        }
+        const supported = !!(result && result.supported);
+        return { supported, app: supported ? resolveMicApp(result.apps, ownBundleIds) : null };
     }
 
     async function calendarStatus() {
@@ -115,7 +127,7 @@ function createNative({ helperPath, fixturesPath = null, ownBundleIds = [], run 
         return cleanEvents(result && result.events);
     }
 
-    return { available, micApp, calendarStatus, calendarRequest, calendarEvents };
+    return { available, micState, calendarStatus, calendarRequest, calendarEvents };
 }
 
 module.exports = { createNative, resolveMicApp, cleanEvents, KNOWN_APPS };

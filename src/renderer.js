@@ -10,7 +10,8 @@
     const pill = document.getElementById('pill');
     const options = document.getElementById('options');
 
-    const MAX_SCALE_GAIN = 1.3;      // Orb grows from 60px to ~138px
+    // Resting and fully-grown diameters for each orb size (the window is 168px).
+    const ORB_SIZES = { small: [44, 110], medium: [60, 138], large: [76, 150] };
     const ALERT_AFTER_MS = 1500;     // Sustained loudness before the ripple
     const DRAG_THRESHOLD = 4;        // Pixels of movement that turn a click into a drag
     const RETRY_MS = 4000;
@@ -26,8 +27,9 @@
     let restart = false;             // Settings changed while a start was in flight
     let level = 0;
     let loudSince = 0;
-    let second = { sum: 0, n: 0, peak: 0, startedAt: 0 };
+    let second = { sum: 0, raw: 0, n: 0, peak: 0, startedAt: 0 };
     let noticeTimer = null;
+    let maxGain = ORB_SIZES.medium[1] / ORB_SIZES.medium[0] - 1;
 
     /* ------------------------------------------------------------ status */
 
@@ -80,10 +82,50 @@
         }
     }
 
-    async function open(deviceId) {
-        return navigator.mediaDevices.getUserMedia({
-            audio: deviceId ? { deviceId: { exact: deviceId } } : true
-        });
+    // Voice Focus asks for echo cancellation, which (with the feature the
+    // main process enables at launch) runs the microphone through macOS voice
+    // processing. Without Voice Focus the request is exactly as it always was.
+    async function open(deviceId, voiceFocus) {
+        const audio = deviceId ? { deviceId: { exact: deviceId } } : {};
+        if (voiceFocus) audio.echoCancellation = true;
+        return navigator.mediaDevices.getUserMedia({ audio: Object.keys(audio).length ? audio : true });
+    }
+
+    async function openWithFallback(deviceId) {
+        const report = (voice) => {
+            stage.dataset.voice = voice;
+            api.reportVoice(voice);
+        };
+        if (!state.settings.voiceFocus) {
+            report('off');
+            return open(deviceId, false);
+        }
+        try {
+            const opened = await open(deviceId, true);
+            report('on');
+            return opened;
+        } catch (error) {
+            // Voice processing can refuse some microphones or be busy: carry
+            // on without it rather than leave the meter dead.
+            if (error.name === 'NotAllowedError' || error.name === 'SecurityError') throw error;
+            const opened = await navigator.mediaDevices.getUserMedia({
+                audio: { ...(deviceId ? { deviceId: { exact: deviceId } } : {}), echoCancellation: false }
+            });
+            report('fallback');
+            return opened;
+        }
+    }
+
+    const streamKey = ({ settings, idle }) =>
+        `${settings.deviceId || 'default'}|${settings.paused}|${!!idle}|${!!settings.voiceFocus}`;
+
+    // Size, opacity and symbols are preferences, applied whenever they change.
+    function applyAppearance({ orbSize, orbOpacity, symbols }) {
+        const [base, grown] = ORB_SIZES[orbSize] || ORB_SIZES.medium;
+        maxGain = grown / base - 1;
+        stage.style.setProperty('--orb', `${base}px`);
+        stage.style.setProperty('--orb-opacity', String(orbOpacity === 0.75 || orbOpacity === 0.5 ? orbOpacity : 1));
+        stage.classList.toggle('symbols', !!symbols);
     }
 
     async function start() {
@@ -93,7 +135,7 @@
         }
         starting = true;
         const { deviceId, paused } = state.settings;
-        const key = `${deviceId || 'default'}|${paused}`;
+        const key = streamKey(state);
 
         try {
             stop();
@@ -103,16 +145,20 @@
                 setMode('paused', 'Paused');
                 return;
             }
+            if (state.idle) {
+                setMode('idle'); // Waiting for a call: microphone released, window hidden
+                return;
+            }
 
             if (stage.dataset.state !== 'denied' && stage.dataset.state !== 'no-device') setMode('starting');
 
             let next;
             try {
-                next = await open(deviceId);
+                next = await openWithFallback(deviceId);
             } catch (error) {
                 // The saved microphone was unplugged: fall back to the default.
                 if (deviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
-                    next = await open(null);
+                    next = await openWithFallback(null);
                     api.updateSettings({ deviceId: null });
                 } else {
                     throw error;
@@ -125,7 +171,7 @@
             analyser.fftSize = 256;
             audioContext.createMediaStreamSource(stream).connect(analyser);
             data = new Uint8Array(analyser.frequencyBinCount);
-            second = { sum: 0, n: 0, peak: 0, startedAt: performance.now() };
+            second = { sum: 0, raw: 0, n: 0, peak: 0, startedAt: performance.now() };
 
             setMode('listening');
 
@@ -162,10 +208,11 @@
         const ratio = V.levelRatio(level, sensitivity);
         const shown = Math.min(ratio, 1);
         const { r, g, b } = V.colorForRatio(shown);
-        orb.style.setProperty('--s', (1 + shown * MAX_SCALE_GAIN).toFixed(3));
+        orb.style.setProperty('--s', (1 + shown * maxGain).toFixed(3));
         orb.style.setProperty('--c', `${r} ${g} ${b}`);
 
         const zone = V.zoneForRatio(ratio);
+        stage.dataset.zone = zone;
         if (zone === 'loud') {
             if (!loudSince) loudSince = now;
             stage.classList.toggle('alert', now - loudSince > ALERT_AFTER_MS);
@@ -178,11 +225,12 @@
         // History gets the unsmoothed truth, once a second.
         const rawRatio = V.levelRatio(raw, sensitivity);
         second.sum += rawRatio;
+        second.raw += raw;
         second.n += 1;
         second.peak = Math.max(second.peak, rawRatio);
         if (now - second.startedAt >= 1000) {
-            api.sendSample({ avg: second.sum / second.n, peak: second.peak });
-            second = { sum: 0, n: 0, peak: 0, startedAt: now };
+            api.sendSample({ avg: second.sum / second.n, peak: second.peak, raw: second.raw / second.n });
+            second = { sum: 0, raw: 0, n: 0, peak: 0, startedAt: now };
         }
     }
 
@@ -264,8 +312,8 @@
     function onState(next) {
         const first = !state;
         state = next;
-        const key = `${state.settings.deviceId || 'default'}|${state.settings.paused}`;
-        if (first || key !== activeKey) start();
+        applyAppearance(state.settings);
+        if (first || streamKey(state) !== activeKey) start();
     }
 
     navigator.mediaDevices.addEventListener('devicechange', async () => {
@@ -286,11 +334,14 @@
     }, RETRY_MS);
 
     api.onState(onState);
+    api.onNotice((message) => flashNotice(message, 6000));
     api.getState().then((initial) => {
         onState(initial);
         requestAnimationFrame(frame);
         setTimeout(() => {
-            if (stage.dataset.state === 'listening') flashNotice('Click the orb for options', 8000);
+            if (stage.dataset.state !== 'listening') return;
+            const learning = state.settings.sensitivityMode === 'auto' && !state.settings.calibrated;
+            flashNotice(learning ? 'Learning your voice…' : 'Click the orb for options', 8000);
         }, 900);
     });
 })();

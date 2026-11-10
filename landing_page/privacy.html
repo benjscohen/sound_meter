@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy · Shhh.it</title>
+    <meta name="description" content="Sound Meter never records audio and keeps what it learns on your Mac. Here is exactly what it does.">
+    <link rel="canonical" href="https://shhh.it.com/privacy">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Privacy · Shhh.it">
+    <meta property="og:description" content="Sound Meter never records audio and keeps what it learns on your Mac. Here is exactly what it does.">
+    <meta property="og:image" content="https://shhh.it.com/og.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="nav scrolled">
+        <div class="wrap nav-inner">
+            <a class="logo" href="/" aria-label="Shhh.it home">
+                <span class="orb orb-xs" aria-hidden="true"></span>
+                <span>Shhh.it</span>
+            </a>
+            <nav class="nav-links" aria-label="Primary">
+                <a href="/#how">How it works</a>
+                <a href="/#install">Install</a>
+                <a href="/changelog">Changelog</a>
+                <a href="/privacy">Privacy</a>
+            </nav>
+            <a class="btn btn-dark btn-sm" href="/#install">Download</a>
+        </div>
+    </header>
+
+    <main id="main" class="prose-page">
+        <div class="wrap prose">
+            <p class="kicker">Privacy</p>
+            <h1>Your voice stays with you.</h1>
+            <p class="lede">Sound Meter measures how loud you are. It never records audio, has no accounts, and keeps
+                what it learns on your Mac. This page explains exactly what it does.</p>
+            <p class="updated">Last updated November 10, 2026</p>
+
+            <h2>The short version</h2>
+            <ul>
+                <li>No audio is ever recorded, stored or sent anywhere.</li>
+                <li>Your history is a set of loudness numbers in a folder on your Mac. You can export or delete it at
+                    any time.</li>
+                <li>There are no accounts, no ads, and nothing is sold or shared with anyone.</li>
+                <li>The app is open source, so every claim here can be checked against
+                    <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">the code</a>.</li>
+            </ul>
+
+            <h2>Microphone</h2>
+            <p>Sound Meter listens to your microphone to work out a single number: how loud the signal is right now.
+                That number drives the orb. The audio itself is processed in memory and discarded immediately. It is
+                never written to disk and never leaves your Mac.</p>
+
+            <h2>History</h2>
+            <p>Once a minute, Sound Meter saves a few numbers: how long it was listening, your average and peak
+                level, how many seconds were too loud, and the name of the call app in use, if any. These are stored
+                in <code>~/Library/Application Support/sound_meter/history</code> on your Mac and removed
+                automatically after 90 days. Insights reads them to draw its charts. You can export them as a CSV file
+                or clear them from the Insights window.</p>
+
+            <h2>Call apps</h2>
+            <p>To credit your loudness to the right place, Sound Meter asks macOS which apps are currently using a
+                microphone. Only the app’s name (for example “Zoom”) is saved alongside each minute.</p>
+
+            <h2>Calendar, if you connect it</h2>
+            <p>Connecting your calendar is optional and off by default. If you turn it on, Sound Meter reads event
+                titles, times and attendee names from the macOS Calendar app when you open Insights, to show how loud
+                you were in each meeting. Calendar details are shown to you and then discarded. They are never saved
+                by Sound Meter and never sent anywhere. You can turn this off from the menu or in System
+                Settings.</p>
+
+            <h2>Sharing, if you choose to</h2>
+            <p>Nothing is shared unless you press Share. A share contains only the totals on the card: your calm
+                percentage, time too loud, time monitored, calm streak, average level, and your loudest weekday and
+                hour. It never includes meeting names, people, or anything from your calendar.</p>
+            <p>Share links carry those numbers in the link itself. The page they open is generated on the fly and
+                nothing about it is stored, but anyone you send the link to can see the numbers in it. If you post to
+                a social network, that network’s own privacy policy applies to your post.</p>
+
+            <h2>Updates</h2>
+            <p>Sound Meter checks GitHub for new versions about once an hour and downloads them from there. As with
+                any download, GitHub can see your IP address and the request.</p>
+
+            <h2>This website</h2>
+            <p>The site is hosted on Vercel and uses Vercel Web Analytics to count page views. It does not use
+                cookies or track you across sites. Fonts are loaded from Google Fonts, and the download buttons ask
+                GitHub for the latest version, so those services see the usual request details such as your IP
+                address. The “Try it with your voice” demo runs entirely in your browser; its audio is never
+                recorded or sent.</p>
+
+            <h2>Questions</h2>
+            <p>Open an issue on <a href="https://github.com/benjscohen/sound_meter/issues" target="_blank"
+                    rel="noopener">GitHub</a> and you’ll get a straight answer.</p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="wrap footer-inner">
+            <a class="logo" href="/"><span class="orb orb-xs" aria-hidden="true"></span><span>Shhh.it</span></a>
+            <p>&copy; <span id="year">2026</span> Benj Cohen</p>
+            <nav aria-label="Footer">
+                <a href="/changelog">Changelog</a>
+                <a href="/privacy">Privacy</a>
+                <a href="https://github.com/benjscohen/sound_meter" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/benjscohen/sound_meter/issues" target="_blank" rel="noopener">Support</a>
+            </nav>
+        </div>
+    </footer>
+
+    <script type="module" src="./page.js"></script>
+</body>
+
+</html>

@@ -115,6 +115,11 @@ h1 {
     margin-top: 8px;
 }
 
+.step .segmented button {
+    padding: 0 2px;
+    font-size: 12px;
+}
+
 .callout {
     display: flex;
     align-items: flex-start;
