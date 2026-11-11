@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shhh.it — Know when you’re getting loud</title>
     <meta name="description"
-        content="A tiny floating sound meter for your Mac. It glows green while you speak comfortably and warms to red when you get loud. Free, private, open source.">
+        content="A tiny floating orb for your Mac that shows when you’re getting loud. It reacts to your voice, not your speakers. Free, private, open source.">
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0b0e12" media="(prefers-color-scheme: dark)">
     <link rel="canonical" href="https://shhh.it.com/">
@@ -38,6 +38,7 @@
             </a>
             <nav class="nav-links" aria-label="Primary">
                 <a href="#how">How it works</a>
+                <a href="#insights">Insights</a>
                 <a href="#install">Install</a>
                 <a href="#faq">FAQ</a>
                 <a href="/changelog">Changelog</a>
@@ -146,96 +147,80 @@
 
                 <figure class="film card">
                     <video id="film" autoplay muted loop playsinline preload="metadata" poster="/demo-poster.jpg"
-                        aria-label="A short tour of Sound Meter: the orb reacting to a voice, then Insights, Trends and sharing">
+                        aria-label="A short tour of Sound Meter: the orb reacting to a voice, then your day, your trends, settings and sharing">
                         <source src="/demo.mp4" type="video/mp4">
                     </video>
                 </figure>
             </div>
         </section>
 
-        <!-- Features -->
-        <section class="section section-tint">
+        <!-- Your voice -->
+        <section class="section section-tint" id="voice">
             <div class="wrap">
                 <div class="section-head">
-                    <p class="kicker">Built for calls</p>
-                    <h2>Small on purpose.</h2>
-                    <p>Sound Meter does one thing and stays out of the way while it does it.</p>
+                    <p class="kicker">Built around you</p>
+                    <h2>Only your voice counts.</h2>
+                    <p>A loudness meter is only useful if it’s measuring the right thing. Sound Meter is built to
+                        react to you, and to nothing else.</p>
                 </div>
-                <div class="features">
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <rect x="3" y="4" width="18" height="13" rx="2.5" />
-                                <path d="M8 21h8M12 17v4" />
-                                <circle cx="17" cy="8" r="1.6" fill="currentColor" stroke="none" />
-                            </svg></span>
-                        <h3>Floats above everything</h3>
-                        <p>Stays visible over every window and full-screen app, including your video calls and
-                            slides.</p>
+                <div class="steps pillars">
+                    <article class="step card pillar">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <path d="M20 33h8l10-9v32l-10-9h-8Z" class="art-muted-fill" />
+                                <path d="M45 31a13 13 0 0 1 0 18M51 25a21 21 0 0 1 0 30" class="art-muted" />
+                                <path d="M16 62 58 18" class="art-slash" />
+                                <circle cx="90" cy="40" r="15" class="art-orb" />
+                            </svg>
+                        </div>
+                        <h3>It ignores your speakers <span class="beta">Beta</span></h3>
+                        <p>Music or a loud call no longer counts as you. Turn on Voice Focus and Sound Meter
+                            subtracts whatever your Mac is playing, so the orb answers only to your voice.</p>
                     </article>
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
-                                <path d="M8 10.500V7.500a4 4 0 0 1 8 0v3" />
-                            </svg></span>
-                        <h3>Private by design</h3>
-                        <p>It measures volume and nothing else. No audio is recorded, stored, or sent anywhere.
-                            Ever.</p>
+                    <article class="step card pillar">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <rect x="22" y="12" width="76" height="56" rx="10" class="art-surface" />
+                                <path d="M32 46c5 0 5-12 10-12s5 18 10 18 5-24 10-24 5 18 10 18 5-8 10-8 3 4 6 4"
+                                    class="art-accent" />
+                                <path d="M32 26h56" class="art-dash" />
+                                <circle cx="82" cy="26" r="5" class="art-accent-fill" />
+                            </svg>
+                        </div>
+                        <h3>It tunes itself</h3>
+                        <p>No sliders to fiddle with. It learns your normal speaking voice from less than a minute
+                            of talking, then sets the line for “too loud” to match.</p>
                     </article>
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-                                <circle cx="16" cy="7" r="2" />
-                                <circle cx="10" cy="17" r="2" />
-                            </svg></span>
-                        <h3>Tuned to you</h3>
-                        <p>Five sensitivity levels, from a whisper-quiet room to a noisy open office or a hot
-                            mic.<span data-min-version="1.4.0" hidden> Or leave it on Auto and it learns your
-                                voice.</span></p>
-                    </article>
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <rect x="9" y="3" width="6" height="11" rx="3" />
-                                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.500V21" />
-                            </svg></span>
-                        <h3>Any microphone</h3>
-                        <p>Built-in mic, AirPods, or a studio setup. Pick the one you’re using and switch any
-                            time.</p>
-                    </article>
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <path d="M12 3v18M3 12h18M12 3 9.5 5.500M12 3l2.5 2.500M12 21l-2.5-2.500M12 21l2.5-2.500M3 12l2.5-2.500M3 12l2.5 2.500M21 12l-2.5-2.500M21 12l-2.5 2.5" />
-                            </svg></span>
-                        <h3>Put it anywhere</h3>
-                        <p>Drag the orb to whichever corner of the screen suits you. It’s also in your menu bar
-                            when you need it.</p>
-                    </article>
-                    <article class="feature">
-                        <span class="icon"><svg viewBox="0 0 24 24">
-                                <path d="M20 12a8 8 0 1 1-2.6-5.900M20 4v4.500h-4.5" />
-                            </svg></span>
-                        <h3>Updates itself</h3>
-                        <p>New versions install quietly in the background. Signed and notarized by Apple.</p>
+                    <article class="step card pillar">
+                        <div class="step-art">
+                            <svg viewBox="0 0 120 80" aria-hidden="true">
+                                <rect x="16" y="16" width="70" height="48" rx="8" class="art-surface" />
+                                <circle cx="38" cy="36" r="8" class="art-track" />
+                                <circle cx="64" cy="36" r="8" class="art-track" />
+                                <rect x="42" y="52" width="18" height="5" rx="2.5" class="art-track" />
+                                <circle cx="94" cy="22" r="11" class="art-orb" />
+                            </svg>
+                        </div>
+                        <h3>It shows up for calls</h3>
+                        <p>Ask it to listen only during calls and the orb appears when one starts, then steps
+                            aside and lets go of your microphone when it ends.</p>
                     </article>
                 </div>
             </div>
         </section>
 
-        <!-- Insights (shown once a release that includes it is available) -->
-        <section class="section" id="insights" data-min-version="1.1.0" hidden>
+        <!-- Insights -->
+        <section class="section" id="insights">
             <div class="wrap split">
                 <div class="split-copy">
-                    <p class="kicker">New · Insights</p>
+                    <p class="kicker">Insights</p>
                     <h2>See how your day sounded.</h2>
                     <p>Sound Meter keeps a simple, private history of how loud you’ve been. Spot the meeting that
                         always gets heated, and watch your loud minutes drop week over week.</p>
                     <ul class="checks">
                         <li>A timeline of every day, minute by minute</li>
-                        <li>Loud time, average and peak at a glance</li>
-                        <li data-min-version="1.2.0" hidden>Which meetings, people and call apps bring out your
-                            loud side</li>
-                        <li data-min-version="1.2.0" hidden>When you get loud: patterns by weekday and hour, plus
-                            a calm streak to protect</li>
-                        <li data-min-version="1.2.0" hidden>A shareable card of your week, totals only</li>
+                        <li>Which meetings, people and call apps bring out your loud side</li>
+                        <li>Patterns by weekday and hour, and a calm streak to protect</li>
                         <li>Stored only on your Mac. Export or delete it any time</li>
                     </ul>
                 </div>
@@ -270,6 +255,98 @@
                     </svg>
                     <div class="mini-axis"><span>9 AM</span><span>11 AM</span><span>1 PM</span><span>3 PM</span><span>5
                             PM</span></div>
+                    <ul class="mini-rows">
+                        <li><span>Customer call</span><i style="--w:62%" class="warm"></i><b>17% loud</b></li>
+                        <li><span>Design review</span><i style="--w:48%" class="mid"></i><b>10% loud</b></li>
+                        <li><span>1:1 with Sam</span><i style="--w:24%"></i><b>0% loud</b></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Share -->
+        <section class="section section-flush" id="share">
+            <div class="wrap split reverse">
+                <figure class="share-shot">
+                    <img src="/share-sample.png" width="1200" height="630" loading="lazy"
+                        alt="A share card reading: My week in volume, 93% calm. Too loud for 1 hour 10 minutes of 17 hours 6 minutes this week.">
+                </figure>
+                <div class="split-copy">
+                    <p class="kicker">Share</p>
+                    <h2>Share your week, on your terms.</h2>
+                    <p>One link shows your week’s card wherever you paste it. It carries your totals and nothing
+                        else.</p>
+                    <ul class="checks">
+                        <li>Post to X, LinkedIn, Threads, Bluesky or WhatsApp in a click</li>
+                        <li>Or copy the image, save it, or use the Mac share sheet</li>
+                        <li>No meeting names, no people, nothing stored online</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Details -->
+        <section class="section section-tint">
+            <div class="wrap">
+                <div class="section-head">
+                    <p class="kicker">The details</p>
+                    <h2>Small on purpose.</h2>
+                    <p>Sound Meter does one thing and stays out of the way while it does it.</p>
+                </div>
+                <div class="features">
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="13" rx="2.5" />
+                                <path d="M8 21h8M12 17v4" />
+                                <circle cx="17" cy="8" r="1.6" fill="currentColor" stroke="none" />
+                            </svg></span>
+                        <h3>Floats above everything</h3>
+                        <p>Stays visible over every window and full-screen app, including your video calls and
+                            slides. Drag it to any corner.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+                                <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+                            </svg></span>
+                        <h3>Private by design</h3>
+                        <p>It measures volume and nothing else. No audio is recorded, stored, or sent anywhere.
+                            <a href="/privacy">Read exactly what it does</a>.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+                                <path d="M9 4.5v15M12.5 9.5h5M12.5 13h5" />
+                            </svg></span>
+                        <h3>One window for everything</h3>
+                        <p>Click the orb and your day, your trends and your settings are in one place. Every
+                            setting applies as you change it.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <circle cx="7" cy="14" r="3" />
+                                <circle cx="16" cy="11" r="5.5" />
+                            </svg></span>
+                        <h3>Make it yours</h3>
+                        <p>Three sizes, three opacities, and optional level symbols so the orb reads clearly
+                            even if colour doesn’t.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <rect x="9" y="3" width="6" height="11" rx="3" />
+                                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+                            </svg></span>
+                        <h3>Any microphone</h3>
+                        <p>Built-in mic, AirPods, or a studio setup. Pick the one you’re using and switch any
+                            time.</p>
+                    </article>
+                    <article class="feature">
+                        <span class="icon"><svg viewBox="0 0 24 24">
+                                <path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5" />
+                            </svg></span>
+                        <h3>Updates itself</h3>
+                        <p>New versions install quietly in the background. Signed and notarized by Apple.</p>
+                    </article>
                 </div>
             </div>
         </section>
@@ -373,19 +450,32 @@
                         <p>Yes. It listens to your microphone independently, so it works alongside any calling
                             app, and in person too.</p>
                     </details>
-                    <details data-min-version="1.2.0" hidden>
-                        <summary>What does connecting my calendar do?</summary>
-                        <p>It’s optional. If you connect it, Sound Meter reads your events from the macOS Calendar
-                            app to show how loud you were in each meeting. Events are read on your Mac when you
-                            open Insights and are never stored or sent anywhere. To include a Google or Outlook
-                            calendar, add that account to your Mac’s Calendar app.</p>
-                    </details>
                     <details>
                         <summary>Does it pick up sound from my speakers?</summary>
-                        <p>It measures whatever your microphone hears, so loud music or a call played through
-                            speakers can raise the reading. For the most accurate picture of your own voice, use
-                            headphones.<span data-min-version="1.6.0" hidden> Or turn on Voice Focus in Settings,
-                                which cancels what your Mac is playing so only you count.</span></p>
+                        <p>Out of the box it measures whatever your microphone hears, so loud music or a call on
+                            speakers can raise the reading. Turn on Voice Focus in Settings and Sound Meter
+                            subtracts what your Mac is playing, so only you count. macOS asks once for permission
+                            to hear system audio; it is used only for that and never recorded. Headphones avoid
+                            the question entirely.</p>
+                    </details>
+                    <details>
+                        <summary>It turns red too easily (or never does). Can I adjust it?</summary>
+                        <p>It tunes itself to your voice, but you’re in charge. Click the orb to open Settings,
+                            then pick one of five sensitivity levels or choose Relearn my voice to have it listen
+                            again.</p>
+                    </details>
+                    <details>
+                        <summary>Is my microphone on all the time?</summary>
+                        <p>Only while Sound Meter is listening, and you can pause it whenever you like. Turn on
+                            Listen only during calls and it lets go of the microphone whenever no other app is
+                            using it.</p>
+                    </details>
+                    <details>
+                        <summary>What does connecting my calendar do?</summary>
+                        <p>It’s optional. If you connect it, Sound Meter reads your events from the macOS Calendar
+                            app to show how loud you were in each meeting. Events are read on your Mac while
+                            Insights is open and are never stored or sent anywhere. To include a Google or Outlook
+                            calendar, add that account to your Mac’s Calendar app.</p>
                     </details>
                     <details>
                         <summary>Will other people on my call see it?</summary>
@@ -393,12 +483,6 @@
                             between you and your Mac.</p>
                     </details>
                     <details>
-                        <summary>It turns red too easily (or never does). Can I adjust it?</summary>
-                        <p>Yes. Click the orb to choose from five sensitivity levels. Pick the one where your
-                            normal speaking voice stays green.<span data-min-version="1.4.0" hidden>
-                                On Automatic, choose Relearn My Voice to have it listen again.</span></p>
-                    </details>
-                    <details data-min-version="1.4.0" hidden>
                         <summary>Which download do I need?</summary>
                         <p>There are two: one for Macs with Apple silicon (every Mac sold since late 2020) and
                             one for older Macs with an Intel chip. This page picks one for you and says which.

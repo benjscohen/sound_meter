@@ -19,7 +19,9 @@ const out = path.join(root, 'landing_page', 'public');
 const WIDTH = 1280;
 const HEIGHT = 720;
 const FPS = 30;
-const SECONDS = 16;
+const INTRO_END = 4.1;       // The orb has the stage until here
+const SCENE_STEP = 3.1;      // A new screen every this many seconds
+const SCENE_SHOWN = 3.3;     // ...each on screen this long (they overlap as they cross-fade)
 const POSTER_AT = 1.0;
 
 const shot = (name) => {
@@ -29,10 +31,13 @@ const shot = (name) => {
 };
 
 const SCENES = [
-    { kicker: 'Insights', title: 'See how your day sounded.', image: '8-insights-day' },
+    { kicker: 'Day', title: 'See how your day sounded.', image: '8-insights-day' },
     { kicker: 'Trends', title: 'Spot when, where and with whom.', image: '10-insights-trends' },
+    { kicker: 'Settings', title: 'Tune it once. It applies as you go.', image: '6d-settings' },
     { kicker: 'Share', title: 'Share your week, totals only.', image: '12-insights-share' }
 ];
+const OUTRO_START = INTRO_END + SCENES.length * SCENE_STEP - 0.4;
+const SECONDS = Math.ceil(OUTRO_START + 2.6);
 
 const page = () => `<!doctype html><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0}
@@ -80,20 +85,20 @@ function level(t){
 const zoneName=(r)=>r>=.75?'Too loud':r>=Y?'Getting loud':'Sounding good';
 window.renderFrame=(t)=>{
   const set=(id,o)=>{document.getElementById(id).style.opacity=o.toFixed(3)};
-  set('intro',window_(t,-1,4.3));
+  set('intro',window_(t,-1,${INTRO_END + 0.2}));
   const r=level(t);
   const orb=document.getElementById('orb');
   orb.style.transform='scale('+(1+r*1.25).toFixed(3)+')';
   orb.style.setProperty('--c',colour(r).join(' '));
   document.getElementById('zone').textContent=zoneName(r);
   ${SCENES.map((_, i) => {
-        const start = 4.1 + i * 3.25;
-        return `{const o=window_(t,${start},${start + 3.45});set('scene-${i}',o);
-    const p=clamp((t-${start})/3.45);
+        const start = INTRO_END + i * SCENE_STEP;
+        return `{const o=window_(t,${start},${start + SCENE_SHOWN});set('scene-${i}',o);
+    const p=clamp((t-${start})/${SCENE_SHOWN});
     document.getElementById('scene-${i}').style.transform='translateY('+((1-ease((t-${start})/.7))*26).toFixed(1)+'px)';
-    document.getElementById('image-${i}').style.transform='translateY('+(-p*${i === 2 ? 40 : 90}).toFixed(1)+'px)';}`;
+    document.getElementById('image-${i}').style.transform='translateY('+(-p*${SCENES[i].image.includes('share') ? 40 : 90}).toFixed(1)+'px)';}`;
     }).join('\n  ')}
-  set('end',window_(t,13.7,${SECONDS + 1}));
+  set('end',window_(t,${OUTRO_START},${SECONDS + 1}));
   document.getElementById('orb-end').style.transform='scale('+(1+.08*Math.sin(t*2.4)).toFixed(3)+')';
   return new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));
 };
