@@ -24,20 +24,17 @@ const HOURLY_MS = 60 * 60 * 1000;
 // How long after a call app lets go of the microphone before the orb hides.
 // (Overridable so the end-to-end test doesn't have to wait.)
 const IDLE_GRACE_MS = Number(process.env.SOUND_METER_IDLE_GRACE_MS) || 45 * 1000;
-const VOICE_FOCUS_AVAILABLE = false;
 const ORB_SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 const ORB_OPACITIES = [[1, '100%'], [0.75, '75%'], [0.5, '50%']];
 const CALENDAR_CACHE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CALENDAR_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars';
+// Screen & System Audio Recording, where "System Audio Recording Only" lives.
+const SYSTEM_AUDIO_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
 const MIC_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone';
 const WEBSITE_URL = 'https://shhh.it.com';
 
-// Settings load before Chromium starts because Voice Focus is a start-up
-// choice: it runs the microphone through macOS voice processing, which the
-// audio engine only does when this feature is on at launch.
 const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'));
-if (settings.get('voiceFocus')) app.commandLine.appendSwitch('enable-features', 'EnforceSystemEchoCancellation');
 
 const calibrator = createCalibrator();
 const nudger = createNudger();
@@ -60,7 +57,8 @@ const runtime = {
     micSupported: false,    // Whether macOS can tell us which apps use the microphone
     micKnown: false,        // Whether we have had an answer yet
     idle: false,            // "Only during calls" is on and nobody is on a call
-    voice: 'off',           // Voice Focus: 'off' | 'on' | 'fallback' (asked for, couldn't start)
+    voice: 'off',           // Voice Focus: 'off' | 'on' | 'fallback' (wanted, but macOS won't let us hear system audio)
+    voiceRetry: 0,          // Bumped to ask the meter to try Voice Focus again
     update: { status: 'idle', version: null } // idle | checking | downloading | ready
 };
 
@@ -80,6 +78,8 @@ function getState() {
         micStatus: runtime.micStatus,
         micApp: runtime.micApp,
         idle: runtime.idle,
+        voice: runtime.voice,
+        voiceRetry: runtime.voiceRetry,
         update: runtime.update,
         version: app.getVersion(),
         packaged: app.isPackaged,
@@ -107,6 +107,12 @@ function updateSettings(patch) {
         calibrator.reset();
         patch = { ...patch, calibrated: false, sensitivity: CONSTANTS.SENSITIVITY_PRESETS.MEDIUM };
         setImmediate(() => sendToMeter('meter:notice', 'New microphone: learning your voice…'));
+    }
+    // With Voice Focus the signal reads a little differently, so learn again.
+    const voiceChanged = patch && 'voiceFocus' in patch && !!patch.voiceFocus !== !!settings.get('voiceFocus');
+    if (voiceChanged && settings.get('sensitivityMode') === 'auto') {
+        calibrator.reset();
+        patch = { ...patch, calibrated: false, sensitivity: CONSTANTS.SENSITIVITY_PRESETS.MEDIUM };
     }
     if (!settings.update(patch)) return;
     broadcastState();
@@ -224,30 +230,6 @@ function checkWeeklyRecap() {
 function hourly() {
     history.prune(HISTORY_RETENTION_DAYS);
     checkWeeklyRecap();
-}
-
-// Voice Focus only takes effect at launch, so switching it restarts the app.
-async function setVoiceFocus(enable) {
-    const { response } = await dialog.showMessageBox({
-        type: 'question',
-        buttons: [enable ? 'Turn On and Restart' : 'Turn Off and Restart', 'Cancel'],
-        defaultId: 0,
-        cancelId: 1,
-        message: enable ? 'Turn on Voice Focus?' : 'Turn off Voice Focus?',
-        detail: enable
-            ? 'Voice Focus uses macOS voice processing so sound from your speakers counts less toward your level. '
-                + 'It is new: if readings look wrong, turn it off again. Sound Meter will restart.'
-            : 'Sound Meter will restart and measure the microphone as it comes.'
-    });
-    if (response !== 0) {
-        refreshTray();
-        return;
-    }
-    // A different signal path reads differently, so learn the voice again.
-    const relearn = settings.get('sensitivityMode') === 'auto' ? { calibrated: false } : {};
-    settings.update({ voiceFocus: enable, ...relearn });
-    app.relaunch();
-    app.quit();
 }
 
 async function calendarState() {
@@ -472,6 +454,11 @@ const SETTINGS_ACTIONS = {
     'launch-at-login': (value) => setLaunchAtLogin(value === true),
     'check-updates': () => checkForUpdates(true),
     'restart-to-update': () => { if (autoUpdater && runtime.update.status === 'ready') autoUpdater.quitAndInstall(); },
+    'open-audio-settings': () => shell.openExternal(SYSTEM_AUDIO_SETTINGS_URL),
+    'retry-voice': () => {
+        runtime.voiceRetry += 1;
+        broadcastState();
+    },
     'quit': () => app.quit()
 };
 
@@ -568,7 +555,10 @@ function buildMenuTemplate({ forTray = false } = {}) {
         });
     }
     if (runtime.voice === 'fallback') {
-        template.push({ label: 'Voice Focus couldn’t start with this microphone', enabled: false });
+        template.push(
+            { label: 'Voice Focus needs permission to hear system audio', enabled: false },
+            { label: 'Open System Audio Settings…', click: () => shell.openExternal(SYSTEM_AUDIO_SETTINGS_URL) }
+        );
     }
 
     template.push(
@@ -594,15 +584,7 @@ function buildMenuTemplate({ forTray = false } = {}) {
             }))
         },
         sensitivityMenu(),
-        {
-            // Hidden until it has been proven on real audio; the plumbing is in place.
-            label: 'Voice Focus (Beta)',
-            type: 'checkbox',
-            visible: VOICE_FOCUS_AVAILABLE || settings.get('voiceFocus'),
-            checked: settings.get('voiceFocus'),
-            toolTip: 'Count sound from your speakers less. Restarts Sound Meter.',
-            click: (item) => setVoiceFocus(item.checked)
-        },
+        toggle('Voice Focus (Beta)', 'voiceFocus', { toolTip: 'Ignore sound from your speakers' }),
         { type: 'separator' },
         { label: 'Insights…', click: () => openInsights() },
         {
@@ -782,7 +764,7 @@ function registerIpc() {
     ipcMain.on('meter:voice', (_event, voice) => {
         if (!['off', 'on', 'fallback'].includes(voice) || voice === runtime.voice) return;
         runtime.voice = voice;
-        refreshTray();
+        broadcastState();
     });
 
     ipcMain.on('meter:sample', (_event, sample) => {

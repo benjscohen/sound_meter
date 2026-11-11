@@ -276,6 +276,27 @@ async function run() {
     await js(panel, `document.querySelector('.page').scrollTop = 99999`);
     await shoot(panel, '6e-settings-bottom');
 
+    // Voice Focus: this test machine won't let the app hear system audio, so
+    // it must say so, keep listening normally, and offer the way forward.
+    await press('input[data-setting="voiceFocus"]');
+    await until(() => js(meter, `document.getElementById('stage').dataset.voice === 'fallback'`), 'Voice Focus to fall back without permission', 12000);
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening to continue without Voice Focus');
+    await until(() => js(panel, `!document.getElementById('voice-blocked').hidden`), 'permission notice in Settings');
+    const voiceState = await js(panel, `window.soundMeter.getState()`);
+    if (voiceState.voice !== 'fallback' || !voiceState.settings.voiceFocus) throw new Error(`Unexpected Voice Focus state: ${voiceState.voice}`);
+    await until(() => js(meter, `parseFloat(getComputedStyle(document.getElementById('orb')).getPropertyValue('--s')) > 1.02`), 'orb to keep reacting', 12000);
+    await js(panel, `document.getElementById('voice-blocked').scrollIntoView({ block: 'center' })`);
+    await shoot(panel, '6f-settings-voice-focus');
+    await press('[data-action="open-audio-settings"]');
+    await until(() => outside.opened.some((url) => url.includes('Privacy_ScreenCapture')), 'System Settings to open');
+    outside.opened.length = 0;
+    await press('[data-action="retry-voice"]');
+    await until(() => js(panel, `window.soundMeter.getState().then((s) => s.voiceRetry === 1 && s.voice === 'fallback')`), 'retry to be attempted');
+    await press('input[data-setting="voiceFocus"]');
+    await until(() => js(meter, `document.getElementById('stage').dataset.voice === 'off'`), 'Voice Focus off');
+    await until(() => js(panel, `document.getElementById('voice-blocked').hidden`), 'notice to clear');
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening after Voice Focus off');
+
     // Pause from the panel, then put everything back the way it was.
     await press('#pause');
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'paused'`), 'pause from settings');

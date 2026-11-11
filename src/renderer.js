@@ -82,42 +82,99 @@
         }
     }
 
-    // Voice Focus asks for echo cancellation, which (with the feature the
-    // main process enables at launch) runs the microphone through macOS voice
-    // processing. Without Voice Focus the request is exactly as it always was.
+    // Voice Focus asks the audio engine to cancel everything the Mac is
+    // playing out of the microphone signal, so speakers don't count as you.
+    // To do that macOS must let the app hear system audio (it asks once).
+    // Without Voice Focus the request is exactly as it always was.
     async function open(deviceId, voiceFocus) {
         const audio = deviceId ? { deviceId: { exact: deviceId } } : {};
-        if (voiceFocus) audio.echoCancellation = true;
+        if (voiceFocus) audio.echoCancellation = 'all';
         return navigator.mediaDevices.getUserMedia({ audio: Object.keys(audio).length ? audio : true });
     }
 
+    const VOICE_SETTLE_MS = 3000;   // A blocked stream ends within this long of opening
+    const VOICE_PROBE_MS = 5000;    // How often to check whether permission has arrived
+    const VOICE_PROBES = 12;        // ...and for how long (a minute), then wait to be asked
+    let voiceBlocked = false;       // Wanted, but macOS won't let us hear system audio
+    let voiceRetry = 0;
+    let probeTimer = null;
+    let probesLeft = 0;
+
+    function reportVoice(voice) {
+        stage.dataset.voice = voice;
+        api.reportVoice(voice);
+    }
+
+    const cancelling = (opened) => {
+        const track = opened.getAudioTracks()[0];
+        return !!track && track.readyState === 'live' && track.getSettings().echoCancellation === 'all';
+    };
+
+    // While blocked we listen normally, and quietly check now and then
+    // whether the permission has been granted, so it starts working without
+    // anyone having to come back and press anything.
+    function scheduleProbe() {
+        clearTimeout(probeTimer);
+        if (!voiceBlocked || probesLeft <= 0) return;
+        probesLeft -= 1;
+        probeTimer = setTimeout(async () => {
+            if (!voiceBlocked || !state.settings.voiceFocus) return;
+            let trial = null;
+            try {
+                trial = await open(state.settings.deviceId, true);
+                await new Promise((resolve) => setTimeout(resolve, 800));
+                if (cancelling(trial)) {
+                    voiceBlocked = false;
+                    activeKey = null;
+                    start();
+                    return;
+                }
+            } catch {
+                // Still not available.
+            } finally {
+                if (trial) trial.getTracks().forEach((track) => track.stop());
+            }
+            scheduleProbe();
+        }, VOICE_PROBE_MS);
+    }
+
+    function blockVoice() {
+        voiceBlocked = true;
+        probesLeft = VOICE_PROBES;
+        scheduleProbe();
+    }
+
     async function openWithFallback(deviceId) {
-        const report = (voice) => {
-            stage.dataset.voice = voice;
-            api.reportVoice(voice);
-        };
         if (!state.settings.voiceFocus) {
-            report('off');
+            voiceBlocked = false;
+            clearTimeout(probeTimer);
+            reportVoice('off');
             return open(deviceId, false);
         }
-        try {
+        if (!voiceBlocked) {
             const opened = await open(deviceId, true);
-            report('on');
-            return opened;
-        } catch (error) {
-            // Voice processing can refuse some microphones or be busy: carry
-            // on without it rather than leave the meter dead.
-            if (error.name === 'NotAllowedError' || error.name === 'SecurityError') throw error;
-            const opened = await navigator.mediaDevices.getUserMedia({
-                audio: { ...(deviceId ? { deviceId: { exact: deviceId } } : {}), echoCancellation: false }
-            });
-            report('fallback');
-            return opened;
+            if (cancelling(opened)) {
+                const openedAt = performance.now();
+                opened.getAudioTracks()[0].addEventListener('ended', () => {
+                    if (stream !== opened) return;
+                    // Ending straight away means macOS refused; later it is
+                    // something else (a device change), so just start again.
+                    if (performance.now() - openedAt < VOICE_SETTLE_MS) blockVoice();
+                    activeKey = null;
+                    start();
+                }, { once: true });
+                reportVoice('on');
+                return opened;
+            }
+            opened.getTracks().forEach((track) => track.stop());
+            blockVoice();
         }
+        reportVoice('fallback');
+        return open(deviceId, false);
     }
 
     const streamKey = ({ settings, idle }) =>
-        `${settings.deviceId || 'default'}|${settings.paused}|${!!idle}|${!!settings.voiceFocus}`;
+        `${settings.deviceId || 'default'}|${settings.paused}|${!!idle}|${!!settings.voiceFocus}|${voiceRetry}`;
 
     // Size, opacity and symbols are preferences, applied whenever they change.
     function applyAppearance({ orbSize, orbOpacity, symbols }) {
@@ -312,6 +369,11 @@
     function onState(next) {
         const first = !state;
         state = next;
+        // "Try again" from Settings: forget that Voice Focus was refused.
+        if (state.voiceRetry !== voiceRetry) {
+            voiceRetry = state.voiceRetry;
+            voiceBlocked = false;
+        }
         applyAppearance(state.settings);
         if (first || streamKey(state) !== activeKey) start();
     }

@@ -153,6 +153,13 @@
             }
         });
 
+        // Voice Focus says plainly whether it is working.
+        const wanted = !!settings.voiceFocus;
+        $('voice-blocked').hidden = !(wanted && state.voice === 'fallback');
+        $('voice-hint').textContent = wanted && state.voice === 'on'
+            ? 'On. Sound from your speakers is being ignored.'
+            : 'Ignore sound from your speakers, so music or a loud call doesn’t count as you.';
+
         // Things that depend on what this Mac can do.
         $('calls-row').hidden = !state.nativeAvailable;
         $('calls-row').classList.toggle('off', !state.callsSupported);

@@ -153,6 +153,27 @@
                         <div class="segmented" id="sensitivity" role="group" aria-label="Sensitivity"></div>
                         <button class="link" id="relearn" type="button" hidden>Relearn my voice</button>
                     </div>
+                    <label class="setting">
+                        <span class="label">
+                            <b>Voice Focus <em class="beta">Beta</em></b>
+                            <small id="voice-hint">Ignore sound from your speakers, so music or a loud call
+                                doesn’t count as you.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" data-setting="voiceFocus"><span></span></span>
+                    </label>
+                    <div class="setting needs" id="voice-blocked" hidden>
+                        <span class="label">
+                            <b>Voice Focus needs one permission</b>
+                            <small>To subtract what your speakers are playing, macOS has to let Sound Meter hear
+                                system audio. It is used only for that and never recorded. Allow Sound Meter under
+                                Screen &amp; System Audio Recording.</small>
+                        </span>
+                        <span class="pair">
+                            <button class="btn" type="button" data-action="open-audio-settings">Open System
+                                Settings</button>
+                            <button class="btn" type="button" data-action="retry-voice">Try again</button>
+                        </span>
+                    </div>
                     <label class="setting" id="calls-row">
                         <span class="label">
                             <b>Listen only during calls</b>
