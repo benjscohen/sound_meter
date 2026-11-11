@@ -158,7 +158,7 @@ onScroll();
 
 // Fade sections in as they scroll into view.
 const revealTargets = document.querySelectorAll(
-    '.section-head, .zone, .film, .feature, .step, .split-copy, .insights-card, .story, .faq, .closing-inner');
+    '.section-head, .zone, .film, .feature, .step, .split-copy, .insights-card, .share-shot, .story, .faq, .closing-inner');
 const revealer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
         if (!entry.isIntersecting) continue;
