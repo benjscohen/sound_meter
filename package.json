@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "A floating orb for your Mac that shows when you are getting loud.",
   "repository": {
     "type": "git",
@@ -51,7 +51,8 @@
         "NSMicrophoneUsageDescription": "This app needs access to the microphone to measure sound levels. No audio is recorded or transmitted.",
         "LSUIElement": false,
         "NSCalendarsFullAccessUsageDescription": "Sound Meter reads your calendar to show how loud you were in each meeting. Event details stay on this Mac.",
-        "NSCalendarsUsageDescription": "Sound Meter reads your calendar to show how loud you were in each meeting. Event details stay on this Mac."
+        "NSCalendarsUsageDescription": "Sound Meter reads your calendar to show how loud you were in each meeting. Event details stay on this Mac.",
+        "NSAudioCaptureUsageDescription": "Sound Meter listens to what your Mac is playing only to subtract it from the microphone level, so your speakers do not count as you. Nothing is recorded."
       },
       "category": "public.app-category.productivity",
       "artifactName": "Sound-Meter-${version}-${arch}.${ext}"
