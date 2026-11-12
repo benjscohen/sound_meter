@@ -14,7 +14,6 @@
     "smoke": "electron -r ./scripts/smoke.js .",
     "assets": "node scripts/make-tray-icon.js && electron scripts/render-assets.js",
     "build:helper": "sh scripts/build-helper.sh",
-    "demo": "electron scripts/make-demo-video.js",
     "check:site": "node scripts/check-site.mjs"
   },
   "build": {

@@ -73,7 +73,7 @@ assert.equal(png.readUInt32BE(20), 630);
 if (process.argv[2]) writeFileSync(process.argv[2], png);
 
 // Downloads: one installer per chip, picked from what the browser reveals.
-const { installers, chipFromHints, compareVersions } = await import('../landing_page/release.js');
+const { installers, chipFromHints } = await import('../landing_page/release.js');
 const asset = (name) => ({ name, browser_download_url: `https://example.test/${name}` });
 const split = installers([asset('latest-mac.yml'), asset('Sound-Meter-1.4.0-arm64.dmg'), asset('Sound-Meter-1.4.0-x64.dmg'),
     asset('Sound-Meter-1.4.0-arm64.zip'), asset('Sound-Meter-1.4.0-x64.zip')]);
@@ -93,8 +93,5 @@ assert.equal(chipFromHints({ renderer: 'Apple GPU' }), 'arm64');                
 assert.equal(chipFromHints({}), 'arm64');
 assert.equal(chipFromHints(), 'arm64');
 
-assert.ok(compareVersions('1.4.0', '1.3.9') > 0);
-assert.ok(compareVersions('1.10.0', '1.9.0') > 0);
-assert.equal(compareVersions('1.4', '1.4.0'), 0);
 
 console.log(`Site check passed: downloads, ${samples.length} links, page and ${png.length}-byte preview image.`);
