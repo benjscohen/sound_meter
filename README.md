@@ -1,98 +1,173 @@
-# Sound Meter
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/hero-dark.png">
+    <img src="docs/readme/hero-light.png" width="100%"
+      alt="Sound Meter: know when you’re getting loud. A small orb that is green when you’re sounding good, amber when you’re getting loud and red when you’re too loud.">
+  </picture>
+</p>
 
-A beautiful, minimalist macOS desktop application that helps you monitor your voice volume in real-time. It floats on top of your other windows, providing subtle visual feedback when you're getting too loud.
+<p align="center">
+  <a href="https://github.com/benjscohen/sound_meter/releases/latest"><b>Download for Mac</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://shhh.it.com">Website</a>
+  &nbsp;·&nbsp;
+  <a href="https://shhh.it.com/privacy">Privacy</a>
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/benjscohen/sound_meter/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/benjscohen/sound_meter?label=latest&color=17a34a"></a>
+  <img alt="macOS 13 or later" src="https://img.shields.io/badge/macOS-13%2B-0a2540">
+  <a href="https://github.com/benjscohen/sound_meter/actions/workflows/test.yml"><img alt="Tests" src="https://github.com/benjscohen/sound_meter/actions/workflows/test.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-0a2540"></a>
+</p>
 
-- **Glanceable feedback:** a floating orb that grows and shifts green → amber → red as you get louder. Three sizes, three opacities, and optional level symbols for when colour alone is hard to read.
-- **Automatic sensitivity:** learns your normal speaking level from less than a minute of talking, once, then leaves it alone. Presets and “Relearn My Voice” are in the menu.
-- **Voice Focus:** cancels what your Mac is playing out of the microphone signal, so music or a loud call on speakers doesn't count as you. On by default (needs macOS 14.2+); macOS asks once for permission to hear system audio, which is used only as the thing to subtract and is never recorded. Measured on real hardware: a spoken test phrase from the speakers raised the plain reading by 14–15 and the Voice Focus reading by 0–2, with no change to playback volume and no loss of the speaker's own voice in quiet. While speakers are playing, your own voice reads slightly lower.
-- **Listen only during calls:** hides the orb and releases the microphone unless another app is using it, with a short grace period so muting doesn't make it blink away.
-- **Notifications, both opt-in:** a quiet nudge after sustained loudness, and a weekly note that your week is ready (never during a call), which opens your share card.
-- **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
-- **One window:** click the orb to see your day in Sound Meter's single window, with a sidebar for Day, Trends and Settings (hover over the orb for a Settings button). Settings apply live, so you can adjust several things in one go while watching the orb. Right-click the orb, or use the menu-bar icon, for a quick menu. Drag the orb anywhere; it remembers where you put it.
-- **Guided first run:** if it is started from the installer or Downloads it offers to move itself to Applications; then a short welcome flow asks for the microphone, lets you see the orb react to your own voice, and explains the speakers (Voice Focus) permission before macOS asks for it.
-- **Insights:** a private, per-minute history of how loud you were. *Day* shows a timeline with a breakdown by meeting and by call app; *Trends* shows the last four weeks: a weekday/hour heatmap, a calm streak, and your loudest meetings, people and apps. Export to CSV or delete any time.
-- **Calendar (opt-in):** reads events from the macOS Calendar app to attribute loudness to meetings and people. Events are read on demand and never stored.
-- **Call detection:** notices which app is using the microphone (Zoom, Teams, FaceTime, a browser…) so each minute can be credited to it. Needs macOS 14.2 or later.
-- **Share:** a card of your week's totals plus a link (`shhh.it.com/s?…`) that shows the same card wherever it's pasted. Copy the link or image, post to X, LinkedIn, Threads, Bluesky, WhatsApp or email in one click, or use the macOS share sheet. The numbers travel in the link itself; nothing is stored online, and no meeting names or people are included.
-- **Privacy first:** runs 100% locally. Only loudness numbers are stored; audio is never recorded or transmitted.
-- **Auto-updates:** checks for new versions in the background.
+## You can’t hear how loud you are. Everyone else can.
 
-## Installation
+Headphones on, deep in a point you care about, your voice climbs and you’re the last to know. Sound Meter is a
+small orb that floats over your calls and tells you first: it stays green while you’re at a comfortable volume and
+warms to red when you’re not.
 
-Download the latest version for macOS (13+) from the [Releases Page](https://github.com/benjscohen/sound_meter/releases/latest).
+> “I am constantly told I am talking loudly but don’t even realize it.”
+> — Benj Cohen, who built it
+
+It is free, open source, and never records a thing.
+
+## What it does
+
+**One glance tells you.** No numbers to read mid-sentence. The orb grows and shifts green → amber → red with your
+voice, above every window including full-screen calls. Drag it anywhere; clicks pass through the space around it.
+
+**Only your voice counts.**
+
+- **It ignores your speakers.** Voice Focus subtracts whatever your Mac is playing, so music or a loud call
+  doesn’t count as you. (macOS 14.2 or later; macOS asks once for permission to hear system audio.)
+- **It tunes itself.** It learns your normal speaking voice from less than a minute of talking. Five manual
+  levels are there if you’d rather choose.
+- **It shows up for calls.** Ask it to listen only during calls and it appears when one starts, then hides and
+  lets go of the microphone when it ends.
+
+**See how your day sounded.** Click the orb for a private, minute-by-minute history: which meetings, people and
+apps get you loud, patterns by weekday and hour, and a calm streak to keep going.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/insights-dark.png">
+    <img src="docs/readme/insights-light.png" width="100%"
+      alt="The Day view: loud time, average level, peak and time monitored, above a timeline of the day that turns amber and red where it got loud.">
+  </picture>
+</p>
+
+**Share your week, on your terms.** One link shows your week’s card wherever you paste it. It carries your totals
+and nothing else: no meeting names, no people, nothing stored online.
+
+<p align="center">
+  <img src="landing_page/public/share-sample.png" width="560"
+    alt="A share card reading: My week in volume, 93% calm.">
+</p>
+
+**Small on purpose.** Any microphone. Three sizes and three opacities, with level symbols if colour alone is
+hard to read. Optional nudges and a weekly recap, both off until you turn them on. It updates itself.
+
+## Install
+
+1. [Download the installer](https://github.com/benjscohen/sound_meter/releases/latest). There is one for Apple
+   silicon (`arm64`) and one for Intel (`x64`); [shhh.it.com](https://shhh.it.com) picks the right one for you.
+2. Drag Sound Meter into Applications.
+3. Open it and allow the microphone.
+
+A short welcome walks you through the rest: you see the orb react to your own voice, and each permission is
+explained before macOS asks for it.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/welcome-dark.png">
+    <img src="docs/readme/welcome-light.png" width="100%"
+      alt="Three steps of the welcome flow: Now say something, Ignore your speakers, and You’re all set.">
+  </picture>
+</p>
+
+Requires macOS 13 or later. Every release is signed and notarized by Apple.
+
+## Privacy
+
+An app that uses your microphone has to earn its place.
+
+- **Volume, not words.** It works out one number, how loud you are right now, and discards the audio as it goes.
+  Nothing you say is recorded, transcribed or stored.
+- **It stays on your Mac.** No account, no ads, nothing sold or shared. Your history is a folder of loudness
+  numbers that you can export or delete whenever you like.
+- **Open to inspection.** Every claim on the [privacy page](https://shhh.it.com/privacy) can be checked against
+  the code in this repository.
+
+The only things that leave your Mac are an hourly check with GitHub for updates and, if you press Share, a link
+containing the totals on your card.
 
 ## Development
 
-### Prerequisites
-
-- Node.js (v18+)
-- npm
-
-### Setup
-
 ```bash
-# Clone the repository
 git clone https://github.com/benjscohen/sound_meter.git
-
-# Install dependencies
+cd sound_meter
 npm install
-```
-
-### Running Locally
-
-```bash
+npm run build:helper   # optional: the Swift helper for calendar and call detection
 npm start
 ```
 
-### Testing
+Node 18 or later. The app is Electron; the helper needs Xcode’s command line tools.
 
-```bash
-npm test         # unit tests (meter maths, history store, settings)
-npm run check:site    # the website's logic: share links, share page, preview image, download picking
-npm run smoke    # boots the real app with a fake microphone, walks through
-                 # onboarding, the meter and Insights, and saves screenshots to ./shots
-```
+| Command | What it does |
+| --- | --- |
+| `npm start` | Runs the app from source. |
+| `npm test` | Unit tests: meter maths, history, settings, analytics, sharing. |
+| `npm run smoke` | Boots the real app with a fake microphone, walks through the welcome flow, the orb, Settings and Insights, and saves screenshots to `./shots`. `SMOKE_THEME=dark` for dark mode. |
+| `npm run check:site` | The website’s logic: share links, the share page, its preview image, and picking the right download. |
+| `npm run assets` | Re-renders the installer background and social card. |
+| `npm run readme:images` | Re-renders the pictures on this page from the smoke-test screenshots. |
+| `npm run dmg:layout` | Records the installer window’s layout with Finder (see [Releasing](#releasing)). |
 
-### Project layout
+### How it is put together
 
-- `main.js` — main process: windows, menus, tray, updates, IPC
-- `src/preload.js` — the only bridge between windows and the main process
-- `src/index.html` + `renderer.js` — the floating meter
-- `src/onboarding.*` — welcome flow
-- `src/panel.html` + `panel.css` — the one main window; `insights.js` owns navigation and the Day and Trends views, `settings.js` the Settings view
-- `src/main/` — settings and history stores (plain JSON files in the app's user-data folder), `analytics.js` (pure functions behind every Insights number) and `native.js` (bridge to the helper)
-- `native/sm-helper.swift` — small Swift binary for the two things Electron can't do: read the calendar (EventKit) and list apps using the microphone (CoreAudio). Build it with `npm run build:helper`; without it the app runs with those features hidden
-- `scripts/` — smoke test, asset generation (`npm run assets`), signing helpers
+| Where | What lives there |
+| --- | --- |
+| `main.js` | Main process: windows, menus, tray, updates, IPC. |
+| `src/preload.js` | The only bridge between windows and the main process. Windows are sandboxed and get this API and nothing else. |
+| `src/index.html`, `src/renderer.js` | The floating orb. |
+| `src/onboarding.*` | The welcome flow. |
+| `src/panel.html`, `src/insights.js`, `src/settings.js` | The one main window: Day, Trends and Settings. |
+| `src/main/` | Settings and history stores (plain JSON in the app’s user-data folder), plus the pure functions behind every number: analytics, calibration, sharing, reminders. Each has tests beside it. |
+| `src/shared/` | Theme and the Voice Focus helper used by both the orb and the welcome flow. |
+| `native/sm-helper.swift` | A small Swift binary for the two things Electron can’t do: read the calendar (EventKit) and see which app is using the microphone (CoreAudio). Without it those features are hidden. |
+| `landing_page/` | The website, [shhh.it.com](https://shhh.it.com): a Vite site plus two stateless edge functions that render shared weeks (`/s`) and their preview images (`/api/og`). Deployed by Vercel on every push to `main`. |
+| `scripts/` | The smoke test, artwork renderers, the installer builder and signing helpers. |
 
-## Website / Landing Page
+A few things worth knowing before changing them:
 
-The `landing_page/` directory contains the source code for the product website (e.g., `shhh.it.com`).
+- **Voice Focus** uses Chromium’s system-audio echo cancellation. If macOS refuses the permission, or is still
+  asking, the orb listens normally and switches over by itself once it is allowed.
+- **History** is one small JSON file per day, a row per minute, removed after 90 days.
+- **Released builds are locked down.** Electron’s run-as-node, `--inspect`, `NODE_OPTIONS` and Chromium’s
+  remote-debugging switches are all refused, so nothing else on a Mac can drive the app or borrow its microphone
+  access. CI checks this before publishing.
 
-- **Download count:** fetched from the GitHub API and shown once it passes 1,000.
-- **Dynamic Links:** Download buttons automatically point to the latest available release artifact.
-- **Pages:** `/privacy` is a plain HTML page built by Vite. Release notes live on GitHub Releases.
-- **Share pages:** `/s?…` (served by `landing_page/api/share.js`) shows a shared week, and `/api/og` renders its link-preview image. Both are stateless: every number comes from the query string and is range-checked.
+## Releasing
 
-## Build & Release
+Pushing a tag such as `v1.6.1` runs the release workflow, which tests, builds for both chips, signs with a
+Developer ID, notarizes with Apple and uploads everything to a draft release. The release only goes public once
+every installer and the update manifest are there, so no one, and no running copy of the app, ever sees a
+half-uploaded release.
 
-This project uses **GitHub Actions** for a fully automated CI/CD pipeline.
+The installers are built by `scripts/dmg.js` rather than electron-builder’s own dmg target, whose window layout
+recent versions of Finder ignore (the background never shows). The layout Finder draws from is recorded once into
+`assets/dmg/DS_Store`; after changing the installer’s design, run `npm run dmg:layout` on a Mac and commit the
+result.
 
-- **Push to main / pull request:** Runs unit tests and builds the landing page.
-- **Push a tag (e.g., `v1.0.0`):** Triggers the full release pipeline:
-    1.  Runs unit tests.
-    2.  Builds the application.
-    3.  Signs the code with an Apple Developer ID.
-    4.  Notarizes the app with Apple.
-    5.  Publishes a new Release to GitHub with `.dmg` installers for Apple silicon (`-arm64`) and Intel (`-x64`), plus auto-update artifacts.
+Signing needs `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` and a Developer ID certificate. Without
+them a local `npm run build` still produces unsigned builds.
 
-The installers are built by `scripts/dmg.js` rather than electron-builder's own dmg target, whose window layout recent versions of Finder ignore (the background never shows). The layout Finder draws from is recorded once into `assets/dmg/DS_Store`; after changing the installer's design, run `npm run dmg:layout` on a Mac and commit the result.
+## Questions and ideas
 
-### Secrets
-
-To build and sign the app locally or in a fork, you will need valid Apple Developer credentials. See `SETUP_SECRETS.md` (if available) or check `electron-builder` documentation for required environment variables (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `CSC_LINK`, `CSC_KEY_PASSWORD`).
+[Open an issue](https://github.com/benjscohen/sound_meter/issues). Bug reports are most useful with your macOS
+version and what the orb was doing at the time.
 
 ## License
 
-MIT
+[MIT](LICENSE)
