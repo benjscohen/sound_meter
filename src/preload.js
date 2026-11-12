@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('soundMeter', {
 
     // Onboarding.
     finishOnboarding: (options) => ipcRenderer.invoke('onboarding:finish', options),
+    closeOnboarding: () => ipcRenderer.send('onboarding:close'),
+    moveToApplications: () => ipcRenderer.invoke('install:move'),
+    stayPut: () => ipcRenderer.invoke('install:stay'),
 
     // Insights.
     openInsights: () => ipcRenderer.send('insights:open'),

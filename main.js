@@ -13,7 +13,7 @@ const { createCalibrator } = require('./src/main/calibration');
 const { createNudger, recapDue } = require('./src/main/reminders');
 const { createPresence } = require('./src/main/presence');
 const { describeUpdateError } = require('./src/main/update-errors');
-const { offerMoveToApplications } = require('./src/main/install');
+const { shouldOfferMove, moveToApplications } = require('./src/main/install');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 // A released build refuses Chromium's remote-debugging switches. Left on,
@@ -86,6 +86,14 @@ const webPreferences = {
 
 /* ------------------------------------------------------------------ state */
 
+// Whether to offer moving into Applications. (The end-to-end test, which
+// runs unpackaged, switches the offer on to walk through it.)
+const offerMove = () => process.env.SOUND_METER_OFFER_MOVE === '1' || shouldOfferMove({
+    packaged: app.isPackaged,
+    inApplications: app.isPackaged && app.isInApplicationsFolder(),
+    declined: settings.get('declinedMove')
+});
+
 function getState() {
     return {
         settings: settings.all(),
@@ -96,6 +104,7 @@ function getState() {
         voice: runtime.voice,
         voiceRetry: runtime.voiceRetry,
         voiceSupported: VOICE_SUPPORTED,
+        offerMove: offerMove(),
         update: runtime.update,
         version: app.getVersion(),
         packaged: app.isPackaged,
@@ -844,6 +853,11 @@ function registerIpc() {
     });
     ipcMain.on('mic:open-settings', () => shell.openExternal(MIC_SETTINGS_URL));
 
+    ipcMain.handle('install:move', () => moveToApplications(app));
+    ipcMain.handle('install:stay', () => { settings.update({ declinedMove: true }); });
+    // Someone already set up, who was only asked about moving.
+    ipcMain.on('onboarding:close', () => { if (onboardingWindow) onboardingWindow.close(); });
+
     ipcMain.handle('onboarding:finish', (_event, options = {}) => {
         const patch = { onboarded: true, sensitivityMode: options.sensitivityMode === 'manual' ? 'manual' : 'auto', calibrated: false };
         if (patch.sensitivityMode === 'manual' && Number.isFinite(options.sensitivity)) patch.sensitivity = options.sensitivity;
@@ -948,11 +962,7 @@ if (!app.requestSingleInstanceLock()) {
         else createMeterWindow();
     });
 
-    app.whenReady().then(async () => {
-        // Started from the installer window or Downloads: offer to settle in
-        // properly first. If it moves, the copy in Applications takes over.
-        if (await offerMoveToApplications({ app, dialog, settings })) return;
-
+    app.whenReady().then(() => {
         history = createHistory(path.join(app.getPath('userData'), 'history'));
         history.prune(HISTORY_RETENTION_DAYS);
         native = createNative({
@@ -972,7 +982,9 @@ if (!app.requestSingleInstanceLock()) {
         createAppMenu();
         createTray();
 
-        if (settings.get('onboarded')) {
+        // The welcome window is for a first run, and for a copy started
+        // from the installer or Downloads, which it offers to move.
+        if (settings.get('onboarded') && !offerMove()) {
             syncDock();
             createMeterWindow();
         } else {

@@ -23,6 +23,7 @@ app.setPath('userData', profile);
 app.commandLine.appendSwitch('use-fake-device-for-media-stream');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 process.env.SOUND_METER_IDLE_GRACE_MS = '1500'; // Don't wait 45s for the orb to hide after a call
+process.env.SOUND_METER_OFFER_MOVE = '1';       // Walk through "Move to Applications?" too
 nativeTheme.themeSource = theme;
 fs.mkdirSync(out, { recursive: true });
 
@@ -161,7 +162,22 @@ async function run() {
     const welcome = await until(() => find('onboarding.html'), 'welcome window');
     await until(() => js(welcome, `document.querySelector('.step.active') !== null`), 'welcome content');
     if (find('index.html')) throw new Error('Meter should not appear before onboarding finishes');
+    // Started from "somewhere else": it offers to move itself first. Here the
+    // move fails, so it must say what to do instead and carry on.
+    let moves = 0;
+    app.moveToApplicationsFolder = () => { moves += 1; throw new Error('User rejected the authorization request'); };
+    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === 'move'
+        && document.getElementById('primary').textContent === 'Move to Applications'`), 'the offer to move');
     await wait(900);
+    await shoot(welcome, '0-move');
+    await js(welcome, `document.getElementById('primary').click()`);
+    await until(() => js(welcome, `!document.getElementById('move-callout').hidden
+        && document.getElementById('primary').textContent === 'Continue'`), 'the failed move to be explained');
+    if (moves !== 1) throw new Error(`Expected one attempt to move, saw ${moves}`);
+    await shoot(welcome, '0a-move-failed');
+    await js(welcome, `document.getElementById('primary').click()`);
+    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === 'welcome'`), 'welcome step');
+    await wait(600);
     await shoot(welcome, '1-welcome');
 
     const stepIs = (name) => js(welcome, `document.getElementById('wizard').dataset.step === ${JSON.stringify(name)}`);
@@ -240,7 +256,7 @@ async function run() {
     await fits('done');
 
     if (await js(welcome, `document.getElementById('weekly-recap').checked`)) throw new Error('Weekly recap must be off unless chosen');
-    if ((await js(welcome, `document.getElementById('dots').children.length`)) !== 5) throw new Error('Expected one dot per step');
+    if ((await js(welcome, `document.getElementById('dots').children.length`)) !== 6) throw new Error('Expected one dot per step');
     await js(welcome, `document.getElementById('launch-at-login').checked = false; document.getElementById('primary').click()`);
 
     /* ---- Meter ---------------------------------------------------------- */

@@ -1,5 +1,6 @@
-// First-run welcome. One thing per step: what it is, the microphone, seeing
-// it react to your own voice, the speakers permission, and where to find it.
+// First-run welcome. One thing per step: settling into Applications if it
+// was started from somewhere else, what it is, the microphone, seeing it
+// react to your own voice, the speakers permission, and where to find it.
 (() => {
     const api = window.soundMeter;
     const V = window.AudioVisualizer;
@@ -25,6 +26,7 @@
     let auto = true;
     let choosing = false;               // Showing the sensitivity presets
     let speakers = 'idle';              // 'idle' | 'asking' | 'granted' | 'refused' | 'skipped'
+    let moveFailed = false;
     let analyser = null;
     let stream = null;
     let data = null;
@@ -100,6 +102,25 @@
         el.classList.toggle('ok', kind === 'ok');
         el.classList.toggle('note', kind === 'note');
         el.querySelector('span').textContent = text || '';
+    }
+
+    function renderMove() {
+        if (moveFailed) {
+            callout('move-callout', 'Sound Meter couldn’t move itself. Drag it into your Applications folder from the installer window, then open it from there.');
+            primary.textContent = 'Continue';
+        } else {
+            callout('move-callout', '');
+            primary.textContent = 'Move to Applications';
+            secondary.hidden = false;
+            secondary.textContent = 'Not now';
+        }
+    }
+
+    // On to the step after this one or, when there isn't one, out.
+    function proceed() {
+        const next = flow[flow.indexOf(step) + 1];
+        if (next) go(next);
+        else api.closeOnboarding();
     }
 
     function renderMic() {
@@ -179,7 +200,8 @@
         secondary.hidden = true;
         primary.disabled = false;
 
-        if (step === 'welcome') primary.textContent = 'Get started';
+        if (step === 'move') renderMove();
+        else if (step === 'welcome') primary.textContent = 'Get started';
         else if (step === 'mic') renderMic();
         else if (step === 'try') renderTry();
         else if (step === 'speakers') renderSpeakers();
@@ -230,7 +252,18 @@
         if (busy) return;
         busy = true;
         try {
-            if (step === 'welcome') {
+            if (step === 'move') {
+                if (!moveFailed) {
+                    primary.disabled = true;
+                    // When this works the copy in Applications opens and this one quits.
+                    const { moved } = await api.moveToApplications();
+                    if (moved) return;
+                    moveFailed = true;
+                    render();
+                } else {
+                    proceed();
+                }
+            } else if (step === 'welcome') {
                 await go('mic');
             } else if (step === 'mic') {
                 if (access === 'denied' || access === 'restricted') {
@@ -254,8 +287,11 @@
     }
 
     primary.addEventListener('click', onPrimary);
-    secondary.addEventListener('click', () => {
-        if (step === 'mic') {
+    secondary.addEventListener('click', async () => {
+        if (step === 'move') {
+            await api.stayPut();
+            proceed();
+        } else if (step === 'mic') {
             go('try');
         } else if (step === 'speakers') {
             speakers = 'skipped';
@@ -285,7 +321,11 @@
         choosing = !auto;
         // A Mac that can't do Voice Focus is never asked about it.
         if (state.voiceSupported === false) flow = flow.filter((name) => name !== 'speakers');
-        dots.replaceChildren(...flow.map(() => document.createElement('i')));
+        // Started from the installer or Downloads: settle in first. Someone
+        // who is already set up is asked that and nothing else.
+        if (state.offerMove) flow = state.settings.onboarded ? ['move'] : ['move', ...flow];
+        step = flow[0];
+        if (flow.length > 1) dots.replaceChildren(...flow.map(() => document.createElement('i')));
         // Every message box shares the same pair of icons.
         document.querySelectorAll('.callout').forEach((el) => el.prepend($('callout-icons').content.cloneNode(true)));
         render();
