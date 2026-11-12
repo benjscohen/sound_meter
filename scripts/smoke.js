@@ -6,12 +6,14 @@
 //   SMOKE_THEME=dark npm run smoke
 //
 // Loaded with `electron -r ./scripts/smoke.js .` so it runs before main.js.
-const { app, clipboard, dialog, ipcMain, nativeTheme, powerMonitor, shell, BrowserWindow, Menu, Notification, ShareMenu } = require('electron');
+const { app, clipboard, dialog, ipcMain, nativeTheme, powerMonitor, screen, shell, BrowserWindow, Menu, Notification, ShareMenu } = require('electron');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const os = require('os');
 const path = require('path');
 const { createHistory, localDate } = require('../src/main/history');
+const { clampCentre } = require('../src/main/placement');
+const { CONSTANTS } = require('../src/utils/audio-visualizer');
 
 const out = path.resolve(process.env.SMOKE_OUT || 'shots');
 const theme = process.env.SMOKE_THEME || 'light';
@@ -302,7 +304,7 @@ async function run() {
     // glow and its ripple must fit inside the window.
     const reach = await js(meter, `(() => {
         const blur = Number(getComputedStyle(document.getElementById('orb')).boxShadow.match(/0px 0px ([\\d.]+)px/)[1]);
-        const sizes = { small: [44, 110], medium: [60, 138], large: [76, 150] };
+        const sizes = window.AudioVisualizer.CONSTANTS.ORB_DIAMETERS;
         const glow = Math.max(...Object.values(sizes).map(([base, grown]) => grown / 2 + blur * (grown / base)));
         const ripple = Math.max(...Object.values(sizes).map(([, grown]) => grown / 2 * 1.2 + 2));
         return { glow, ripple, room: Math.min(innerWidth, innerHeight) / 2 };
@@ -516,6 +518,35 @@ async function run() {
     // What is remembered is where the orb's centre is.
     const [meterWidth, meterHeight] = meter.getSize();
     if (saved.position.x !== x1 + meterWidth / 2 || saved.position.y !== y1 + meterHeight / 2) throw new Error('Position was not saved');
+
+    // Pushed into a corner, the orb stops with all of itself on screen while
+    // its window (mostly room for the glow) hangs over the edge and the menu
+    // bar. Its label slides sideways so that it stays on screen too.
+    const area = screen.getPrimaryDisplay().workArea;
+    const drag = (dx, dy) => {
+        ipcMain.emit('meter:drag-start', {});
+        ipcMain.emit('meter:drag-move', {}, dx, dy);
+        ipcMain.emit('meter:drag-end', {});
+    };
+    const centre = () => {
+        const [x, y] = meter.getPosition();
+        return { x: x + meterWidth / 2, y: y + meterHeight / 2 };
+    };
+    drag(9000, -9000);
+    const corner = clampCentre({ x: Infinity, y: -Infinity }, area, CONSTANTS.ORB_DIAMETERS[saved.orbSize][0]);
+    if (centre().x !== corner.x || centre().y !== corner.y) throw new Error(`Orb did not reach the corner: ${JSON.stringify(centre())}, expected ${JSON.stringify(corner)}`);
+    if (meter.getPosition()[1] >= area.y) throw new Error('The orb window is being kept below the menu bar');
+    meter.webContents.send('meter:notice', 'A message long enough to reach the edge');
+    await until(async () => {
+        const pill = await js(meter, `(({ left, right }) => ({ left, right }))(document.getElementById('pill').getBoundingClientRect())`);
+        return pill.right - pill.left > 100 && meter.getPosition()[0] + pill.right <= area.x + area.width;
+    }, 'the label to stay on screen in the corner');
+    // At the bottom of the screen the label goes above the orb.
+    drag(0, 9000);
+    await until(() => js(meter, `document.getElementById('stage').classList.contains('labels-above')
+        && document.getElementById('pill').getBoundingClientRect().bottom < innerHeight / 2`), 'the label to move above the orb');
+    drag(-300, -300);
+    await until(() => js(meter, `!document.getElementById('stage').classList.contains('labels-above')`), 'the label to go back below');
 
     // Samples from the fake mic should be reaching history.
     await until(() => js(meter, `window.soundMeter.listDays(1).then((d) => d.length > 0 && d[0].seconds >= 2)`),

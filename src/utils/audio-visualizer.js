@@ -122,6 +122,8 @@
             MIN_SIZE,
             MAX_ADDITIONAL_SIZE,
             ZONE_LABELS,
+            // Resting and fully-grown diameters of the floating orb, by size.
+            ORB_DIAMETERS: { small: [44, 110], medium: [60, 138], large: [76, 150] },
             COLORS: { GREEN, AMBER, RED }
         }
     };
