@@ -15,7 +15,8 @@
     "assets": "node scripts/make-tray-icon.js && electron scripts/render-assets.js",
     "build:helper": "sh scripts/build-helper.sh",
     "check:site": "node scripts/check-site.mjs",
-    "dmg:layout": "node scripts/record-dmg-layout.js"
+    "dmg:layout": "node scripts/record-dmg-layout.js",
+    "readme:images": "electron scripts/render-readme.js"
   },
   "build": {
     "publish": {
