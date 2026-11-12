@@ -8,14 +8,14 @@
     --tint: #f1f5f9;
     --ink: #0a2540;
     --ink-2: #425466;
-    --ink-3: #7a8799;
+    --ink-3: #5f6d82;
     --line: #e3e8ee;
     --nav: rgba(248, 250, 252, 0.78);
 
     --g: 48 209 88;
     --a: 255 204 0;
     --r: 255 69 58;
-    --green: #17a34a;
+    --green: #15803d;
 
     --radius: 18px;
     --shadow-sm: 0 1px 2px rgba(10, 37, 64, 0.06);
@@ -34,7 +34,7 @@
         --tint: #10141a;
         --ink: #f3f6fa;
         --ink-2: #b3bdc9;
-        --ink-3: #77828f;
+        --ink-3: #808b98;
         --line: #252c35;
         --nav: rgba(11, 14, 18, 0.78);
         --green: #30d158;
@@ -360,7 +360,7 @@ a {
 
 .hero-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
     align-items: center;
     gap: 64px;
 }
@@ -387,10 +387,19 @@ a {
     box-shadow: 0 0 0 3px rgb(var(--g) / 0.2);
 }
 
+/* Lines break where they read well, and never leave one word on its own. */
+p,
+li,
+summary,
+figcaption {
+    text-wrap: pretty;
+}
+
 h1 {
     margin-top: 22px;
-    font-size: clamp(42px, 6.2vw, 72px);
-    line-height: 1.02;
+    /* Sized so "Know when you're" holds together on one line. */
+    font-size: clamp(42px, 4.6vw, 60px);
+    line-height: 1.04;
     font-weight: 800;
     letter-spacing: -0.045em;
     text-wrap: balance;
@@ -1283,10 +1292,24 @@ blockquote {
     font-variant-numeric: tabular-nums;
 }
 
-.feature a {
+.feature a,
+.faq-more a {
     color: var(--ink);
     font-weight: 500;
     text-underline-offset: 3px;
+}
+
+.faq-more {
+    margin-top: 16px;
+    color: var(--ink-2);
+    font-size: 15.5px;
+}
+
+/* Phrases that stay in one piece: the two halves of the headline, and the
+   link that swaps chips. */
+.nb,
+.chip-switch {
+    white-space: nowrap;
 }
 
 /* ------------------------------------------------------------ text pages */
@@ -1450,6 +1473,11 @@ blockquote {
 }
 
 @media (max-width: 720px) {
+    /* Small enough on a phone that the headline still sits on two lines. */
+    h1 {
+        font-size: clamp(32px, 9.3vw, 42px);
+    }
+
     .nav-links {
         display: none;
     }

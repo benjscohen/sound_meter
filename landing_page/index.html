@@ -17,8 +17,10 @@
     <meta property="og:url" content="https://shhh.it.com/">
     <meta property="og:title" content="Shhh.it — Know when you’re getting loud">
     <meta property="og:description"
-        content="A tiny floating sound meter for your Mac. Free, private, open source.">
+        content="A tiny floating orb for your Mac that shows when you’re getting loud. It reacts to your voice, not your speakers. Free, private, open source.">
+    <meta property="og:site_name" content="Shhh.it">
     <meta property="og:image" content="https://shhh.it.com/og.png">
+    <meta property="og:image:alt" content="Shhh.it: a small green orb beside the words Know when you’re getting loud">
     <meta name="twitter:card" content="summary_large_image">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,10 +58,9 @@
             <div class="wrap hero-grid">
                 <div class="hero-copy">
                     <p class="eyebrow"><span class="dot"></span>Free and open source for macOS</p>
-                    <h1>Know when you’re getting&nbsp;loud.</h1>
+                    <h1><span class="nb">Know when you’re</span> <span class="nb">getting loud.</span></h1>
                     <p class="lede">A tiny orb that floats above your work. It stays green while you speak
-                        comfortably and warms to red when you don’t&nbsp;— so you notice before anyone has to tell
-                        you.</p>
+                        comfortably and warms to red when you don’t, so you notice before anyone has to tell you.</p>
                     <div class="cta">
                         <a class="btn btn-dark btn-lg" data-download
                             href="https://github.com/benjscohen/sound_meter/releases/latest">
@@ -195,9 +196,8 @@
                         <div class="step-art">
                             <svg viewBox="0 0 120 80" aria-hidden="true">
                                 <rect x="16" y="16" width="70" height="48" rx="8" class="art-surface" />
-                                <circle cx="38" cy="36" r="8" class="art-track" />
-                                <circle cx="64" cy="36" r="8" class="art-track" />
-                                <rect x="42" y="52" width="18" height="5" rx="2.5" class="art-track" />
+                                <circle cx="51" cy="34" r="8" class="art-track" />
+                                <path d="M36 58a15 12 0 0 1 30 0Z" class="art-track" />
                                 <circle cx="94" cy="22" r="11" class="art-orb" />
                             </svg>
                         </div>
@@ -219,8 +219,8 @@
                         always gets heated, and watch your loud minutes drop week over week.</p>
                     <ul class="checks">
                         <li>A timeline of every day, minute by minute</li>
-                        <li>Which meetings, people and call apps bring out your loud side</li>
-                        <li>Patterns by weekday and hour, and a calm streak to protect</li>
+                        <li>Which meetings, people and apps get you loud</li>
+                        <li>Patterns by weekday and hour, plus a calm streak</li>
                         <li>Stored only on your Mac. Export or delete it any time</li>
                     </ul>
                 </div>
@@ -277,7 +277,7 @@
                     <p>One link shows your week’s card wherever you paste it. It carries your totals and nothing
                         else.</p>
                     <ul class="checks">
-                        <li>Post to X, LinkedIn, Threads, Bluesky or WhatsApp in a click</li>
+                        <li>Post to X, LinkedIn, Threads, Bluesky or WhatsApp</li>
                         <li>Or copy the image, save it, or use the Mac share sheet</li>
                         <li>No meeting names, no people, nothing stored online</li>
                     </ul>
@@ -435,6 +435,9 @@
                 <div class="section-head left">
                     <p class="kicker">FAQ</p>
                     <h2>Questions, answered.</h2>
+                    <p class="faq-more">Something else? <a
+                            href="https://github.com/benjscohen/sound_meter/issues" target="_blank"
+                            rel="noopener">Ask on GitHub</a>.</p>
                 </div>
                 <div class="faq">
                     <details>
