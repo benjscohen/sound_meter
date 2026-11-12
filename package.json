@@ -1,6 +1,6 @@
 {
   "name": "sound_meter",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "A floating orb for your Mac that shows when you are getting loud.",
   "repository": {
     "type": "git",
@@ -91,7 +91,13 @@
         "from": "native/bin/sm-helper",
         "to": "sm-helper"
       }
-    ]
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true
+    }
   },
   "keywords": [],
   "author": "Benj Cohen",

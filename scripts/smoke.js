@@ -232,6 +232,16 @@ async function run() {
         });
     })()`);
     if (clipped.length) throw new Error(`Shadow would be cut off by the window edge: ${clipped}`);
+    // The same goes for the orb itself: at its biggest, in every size, its
+    // glow and its ripple must fit inside the window.
+    const reach = await js(meter, `(() => {
+        const blur = Number(getComputedStyle(document.getElementById('orb')).boxShadow.match(/0px 0px ([\\d.]+)px/)[1]);
+        const sizes = { small: [44, 110], medium: [60, 138], large: [76, 150] };
+        const glow = Math.max(...Object.values(sizes).map(([base, grown]) => grown / 2 + blur * (grown / base)));
+        const ripple = Math.max(...Object.values(sizes).map(([, grown]) => grown / 2 * 1.2 + 2));
+        return { glow, ripple, room: Math.min(innerWidth, innerHeight) / 2 };
+    })()`);
+    if (!(reach.glow > 60) || reach.glow > reach.room || reach.ripple > reach.room) throw new Error(`The orb's glow would be cut off by the window edge: ${JSON.stringify(reach)}`);
     await shoot(meter, '6b-meter-hover');
     // Clicking it opens Settings, which stays open while several things are
     // changed, each applying to the orb straight away.
@@ -239,8 +249,8 @@ async function run() {
     const panel = await until(() => find('panel.html'), 'main window');
     await until(() => js(panel, `!document.getElementById('view-settings').hidden
         && document.querySelectorAll('#sensitivity button').length === 6`), 'settings to load');
-    if (await js(panel, `document.getElementById('title').textContent`) !== 'Settings') throw new Error('The orb should open on Settings');
-    if (outside.menus !== 0) throw new Error('Clicking the orb should open Settings, not the menu');
+    if (await js(panel, `document.getElementById('title').textContent`) !== 'Settings') throw new Error('The Settings button should open on Settings');
+    if (outside.menus !== 0) throw new Error('The Settings button should open Settings, not the menu');
     const orbStyle = () => js(meter, `(() => {
         const orb = getComputedStyle(document.getElementById('orb'));
         return { width: orb.width, opacity: orb.opacity, symbols: document.getElementById('stage').classList.contains('symbols') };
@@ -276,9 +286,10 @@ async function run() {
     await js(panel, `document.querySelector('.page').scrollTop = 99999`);
     await shoot(panel, '6e-settings-bottom');
 
-    // Voice Focus: this test machine won't let the app hear system audio, so
-    // it must say so, keep listening normally, and offer the way forward.
-    await press('input[data-setting="voiceFocus"]');
+    // Voice Focus is on from the start. This test machine won't let the app
+    // hear system audio, so it must say so, keep listening normally, and
+    // offer the way forward.
+    if (!(await js(panel, `document.querySelector('input[data-setting="voiceFocus"]').checked`))) throw new Error('Voice Focus should be on by default');
     await until(() => js(meter, `document.getElementById('stage').dataset.voice === 'fallback'`), 'Voice Focus to fall back without permission', 12000);
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening to continue without Voice Focus');
     await until(() => js(panel, `!document.getElementById('voice-blocked').hidden`), 'permission notice in Settings');
@@ -296,6 +307,40 @@ async function run() {
     await until(() => js(meter, `document.getElementById('stage').dataset.voice === 'off'`), 'Voice Focus off');
     await until(() => js(panel, `document.getElementById('voice-blocked').hidden`), 'notice to clear');
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening after Voice Focus off');
+
+    // While macOS is asking for permission the request just hangs. The meter
+    // must not wait for the answer: it listens normally straight away, then
+    // switches over by itself once the answer is yes.
+    await js(meter, `(() => {
+        const media = navigator.mediaDevices;
+        const real = media.getUserMedia.bind(media);
+        media.getUserMedia = async (constraints) => {
+            if (!constraints || !constraints.audio || constraints.audio.echoCancellation !== 'all') return real(constraints);
+            await new Promise((resolve) => setTimeout(resolve, 7000));
+            const granted = await real({ audio: true });
+            const track = granted.getAudioTracks()[0];
+            const settings = track.getSettings.bind(track);
+            track.getSettings = () => ({ ...settings(), echoCancellation: 'all' });
+            return granted;
+        };
+        window.__restoreMedia = () => { media.getUserMedia = real; };
+    })()`);
+    const askedAt = Date.now();
+    await press('input[data-setting="voiceFocus"]');
+    await until(() => js(meter, `(() => { const s = document.getElementById('stage').dataset; return s.voice === 'fallback' && s.state === 'listening'; })()`), 'listening while macOS is still asking', 6000);
+    if (Date.now() - askedAt > 6000) throw new Error('The meter waited for the permission answer');
+    await until(() => js(meter, `(() => { const s = document.getElementById('stage').dataset; return s.voice === 'on' && s.state === 'listening'; })()`), 'Voice Focus to start once allowed', 12000);
+    await until(() => js(panel, `document.getElementById('voice-hint').textContent.startsWith('On.') && document.getElementById('voice-blocked').hidden`), 'Settings to say Voice Focus is on');
+    await js(meter, `window.__restoreMedia()`);
+    await press('input[data-setting="voiceFocus"]');
+    await until(() => js(meter, `document.getElementById('stage').dataset.voice === 'off'`), 'Voice Focus off again');
+    await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'listening after the permission test');
+
+    // The orb itself opens your day; Settings is the button under it.
+    await js(meter, `document.getElementById('orb').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
+    await until(() => js(panel, `document.getElementById('title').textContent === 'Day'`), 'the orb to open the day');
+    await js(meter, `document.getElementById('options').click()`);
+    await until(() => js(panel, `document.getElementById('title').textContent === 'Settings'`), 'the Settings button to open Settings');
 
     // Pause from the panel, then put everything back the way it was.
     await press('#pause');
@@ -329,7 +374,7 @@ async function run() {
     const setting = (patch) => js(meter, `window.soundMeter.updateSettings(${JSON.stringify(patch)})`);
     const settingsNow = () => js(meter, `window.soundMeter.getState().then((s) => s.settings)`);
     const sample = (avg, raw) => ipcMain.emit('meter:sample', {}, { avg, peak: avg, raw });
-    if (await js(meter, `document.getElementById('stage').dataset.voice`) !== 'off') throw new Error('Voice Focus should be off by default');
+    if (await js(meter, `document.getElementById('stage').dataset.voice`) !== 'off') throw new Error('Voice Focus should be off after switching it off');
 
     // Automatic sensitivity: hears a quiet room, then a minute of talking, and tunes itself once.
     await setting({ sensitivityMode: 'auto', calibrated: false });
@@ -402,7 +447,9 @@ async function run() {
     const [x1, y1] = meter.getPosition();
     if (x1 !== x0 - 120 || y1 !== y0 + 80) throw new Error(`Drag failed: ${x0},${y0} -> ${x1},${y1}`);
     const saved = JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8'));
-    if (saved.position.x !== x1 || saved.position.y !== y1) throw new Error('Position was not saved');
+    // What is remembered is where the orb's centre is.
+    const [meterWidth, meterHeight] = meter.getSize();
+    if (saved.position.x !== x1 + meterWidth / 2 || saved.position.y !== y1 + meterHeight / 2) throw new Error('Position was not saved');
 
     // Samples from the fake mic should be reaching history.
     await until(() => js(meter, `window.soundMeter.listDays(1).then((d) => d.length > 0 && d[0].seconds >= 2)`),
@@ -602,5 +649,6 @@ app.whenReady().then(async () => {
     }
     console.log(failed ? 'SMOKE FAILED' : 'SMOKE PASSED');
     fs.rmSync(profile, { recursive: true, force: true });
+    app.emit('before-quit'); // So closing windows on the way out doesn't open new ones
     app.exit(failed ? 1 : 0);
 });

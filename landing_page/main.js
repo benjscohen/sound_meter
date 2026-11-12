@@ -268,7 +268,7 @@ async function applyRelease({ version, urls, downloads }) {
         // Sections describing newer features appear once that release is out.
         revealForVersion(version);
     }
-    if (downloads >= 25) {
+    if (downloads >= 1000) {
         const count = $('download-count');
         count.textContent = `${downloads.toLocaleString()} downloads`;
         count.hidden = false;

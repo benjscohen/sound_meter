@@ -97,20 +97,6 @@
         gap: 8px;
     }
 
-    .beta {
-        margin-left: 6px;
-        padding: 1px 7px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        color: var(--ink-3);
-        font-size: 10.5px;
-        font-style: normal;
-        font-weight: 600;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        vertical-align: 1px;
-    }
-
     .setting.off .label,
     .setting.off .switch {
         opacity: 0.5;

@@ -4,7 +4,7 @@ const {
 } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { createSettings } = require('./src/main/settings');
+const { createSettings, supportsVoiceFocus } = require('./src/main/settings');
 const { createHistory } = require('./src/main/history');
 const { createNative } = require('./src/main/native');
 const analytics = require('./src/main/analytics');
@@ -15,8 +15,21 @@ const { createPresence } = require('./src/main/presence');
 const { describeUpdateError } = require('./src/main/update-errors');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
-const METER_SIZE = 168;
-const METER_MARGIN = 16;
+// A released build refuses Chromium's remote-debugging switches. Left on,
+// any program on this Mac could drive the app and borrow the microphone and
+// system-audio access the user gave it. (The Node-side equivalents are
+// switched off at build time: see electronFuses in package.json.)
+if (app.isPackaged) {
+    for (const name of ['remote-debugging-port', 'remote-debugging-pipe', 'remote-debugging-address']) {
+        app.commandLine.removeSwitch(name);
+    }
+}
+
+// The orb's window is transparent and much bigger than the orb, so its glow
+// and ripple have room at full size: anything reaching the edge of the
+// window is cut off in a hard line. (Checked by the end-to-end test.)
+const METER_SIZE = 256;
+const METER_INSET = 100;        // Where the orb's centre sits from the top-right corner by default
 const HISTORY_RETENTION_DAYS = 90;
 const TRENDS_DAYS = 28;
 const MIC_APP_POLL_MS = 5 * 1000;
@@ -33,6 +46,7 @@ const CALENDAR_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.se
 const SYSTEM_AUDIO_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
 const MIC_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone';
 const WEBSITE_URL = 'https://shhh.it.com';
+const VOICE_SUPPORTED = supportsVoiceFocus(process.platform, process.getSystemVersion());
 
 const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'));
 
@@ -80,6 +94,7 @@ function getState() {
         idle: runtime.idle,
         voice: runtime.voice,
         voiceRetry: runtime.voiceRetry,
+        voiceSupported: VOICE_SUPPORTED,
         update: runtime.update,
         version: app.getVersion(),
         packaged: app.isPackaged,
@@ -301,22 +316,24 @@ function disconnectCalendar() {
 
 /* ---------------------------------------------------------------- windows */
 
-function defaultMeterPosition() {
-    const { x, y, width } = screen.getPrimaryDisplay().workArea;
-    return { x: x + width - METER_SIZE - METER_MARGIN, y: y + METER_MARGIN };
-}
-
-// Use the saved position only if it is still on a connected display.
-function resolveMeterPosition() {
+// The saved position is where the orb's centre is, so it means the same
+// thing whatever size the window around it happens to be.
+function meterCentre() {
     const saved = settings.get('position');
     if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-        const centre = { x: saved.x + METER_SIZE / 2, y: saved.y + METER_SIZE / 2 };
+        // Use it only if it is still on a connected display.
         const onScreen = screen.getAllDisplays().some(({ workArea: a }) =>
-            centre.x >= a.x && centre.x <= a.x + a.width &&
-            centre.y >= a.y && centre.y <= a.y + a.height);
-        if (onScreen) return { x: Math.round(saved.x), y: Math.round(saved.y) };
+            saved.x >= a.x && saved.x <= a.x + a.width &&
+            saved.y >= a.y && saved.y <= a.y + a.height);
+        if (onScreen) return saved;
     }
-    return defaultMeterPosition();
+    const { x, y, width } = screen.getPrimaryDisplay().workArea;
+    return { x: x + width - METER_INSET, y: y + METER_INSET };
+}
+
+function resolveMeterPosition() {
+    const centre = meterCentre();
+    return { x: Math.round(centre.x - METER_SIZE / 2), y: Math.round(centre.y - METER_SIZE / 2) };
 }
 
 function createMeterWindow() {
@@ -410,14 +427,15 @@ function syncDock() {
     else app.dock.hide();
 }
 
-const PANEL_VIEWS = ['day', 'trends', 'settings'];
+// 'insights' means Day, or Trends if that is what the window is already showing.
+const PANEL_VIEWS = ['insights', 'day', 'trends', 'settings'];
 
 /**
  * Opens the main window on a given view, or brings it forward and switches
  * to that view if it is already open. `share` also raises the share card.
  */
-function openPanel(view = 'day', { share = false } = {}) {
-    if (!PANEL_VIEWS.includes(view)) view = 'day';
+function openPanel(view = 'insights', { share = false } = {}) {
+    if (!PANEL_VIEWS.includes(view)) view = 'insights';
     if (panelWindow) {
         panelWindow.show();
         panelWindow.focus();
@@ -437,13 +455,13 @@ function openPanel(view = 'day', { share = false } = {}) {
     });
 }
 
-const openInsights = ({ share = false } = {}) => openPanel(share ? 'trends' : 'day', { share });
+const openInsights = ({ share = false } = {}) => openPanel(share ? 'trends' : 'insights', { share });
 const openSettings = () => openPanel('settings');
 
 function resetMeterPosition() {
     updateSettings({ position: null });
     const win = createMeterWindow();
-    const { x, y } = defaultMeterPosition();
+    const { x, y } = resolveMeterPosition();
     win.setPosition(x, y);
 }
 
@@ -584,7 +602,11 @@ function buildMenuTemplate({ forTray = false } = {}) {
             }))
         },
         sensitivityMenu(),
-        toggle('Voice Focus (Beta)', 'voiceFocus', { toolTip: 'Ignore sound from your speakers' }),
+        toggle(VOICE_SUPPORTED ? 'Voice Focus' : 'Voice Focus (needs macOS 14.2)', 'voiceFocus', {
+            toolTip: 'Ignore sound from your speakers',
+            enabled: VOICE_SUPPORTED,
+            checked: VOICE_SUPPORTED && !!settings.get('voiceFocus')
+        }),
         { type: 'separator' },
         { label: 'Insights…', click: () => openInsights() },
         {
@@ -807,7 +829,7 @@ function registerIpc() {
         if (!meterWindow || !dragOrigin) return;
         const [x, y] = meterWindow.getPosition();
         dragOrigin = null;
-        settings.update({ position: { x, y } });
+        settings.update({ position: { x: x + METER_SIZE / 2, y: y + METER_SIZE / 2 } });
     });
 
     ipcMain.handle('mic:status', () => systemPreferences.getMediaAccessStatus('microphone'));
@@ -825,6 +847,7 @@ function registerIpc() {
         const patch = { onboarded: true, sensitivityMode: options.sensitivityMode === 'manual' ? 'manual' : 'auto', calibrated: false };
         if (patch.sensitivityMode === 'manual' && Number.isFinite(options.sensitivity)) patch.sensitivity = options.sensitivity;
         if (typeof options.weeklyRecap === 'boolean') patch.weeklyRecap = options.weeklyRecap;
+        if (typeof options.voiceFocus === 'boolean') patch.voiceFocus = options.voiceFocus;
         updateSettings(patch);
         if (typeof options.launchAtLogin === 'boolean') setLaunchAtLogin(options.launchAtLogin);
         createMeterWindow();

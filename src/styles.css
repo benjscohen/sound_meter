@@ -133,10 +133,9 @@ body {
 #options {
     position: absolute;
     left: 50%;
-    /* Room below for the whole shadow: anything past the window edge is cut
-       off in a hard line. */
-    bottom: 14px;
-    max-width: calc(100% - 24px);
+    /* Just below the orb at rest, well inside the window. */
+    top: calc(50% + 46px);
+    max-width: 144px;
     padding: 5px 10px;
     border-radius: 999px;
     background: rgb(17 21 28 / 0.84);

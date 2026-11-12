@@ -50,6 +50,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npm run build
 
+    # A released build must not be drivable from outside (see electronFuses).
+    - name: Check the build is locked down
+      run: |
+        npx electron-fuses read --app "dist/mac-arm64/Sound Meter.app" | tee fuses.txt
+        grep -q "RunAsNode is Disabled" fuses.txt
+        grep -q "EnableNodeCliInspectArguments is Disabled" fuses.txt
+        grep -q "EnableNodeOptionsEnvironmentVariable is Disabled" fuses.txt
+
     # electron-builder uploads to a draft release. Only once every installer
     # and the update manifest are there does it go public, so nobody (and no
     # running copy of the app) ever sees a half-uploaded release.

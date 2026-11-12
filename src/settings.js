@@ -154,10 +154,15 @@
         });
 
         // Voice Focus says plainly whether it is working.
-        const wanted = !!settings.voiceFocus;
+        const voiceSupported = state.voiceSupported !== false;
+        const wanted = voiceSupported && !!settings.voiceFocus;
+        const voiceInput = $('voice-row').querySelector('input');
+        $('voice-row').classList.toggle('off', !voiceSupported);
+        voiceInput.disabled = !voiceSupported;
+        voiceInput.checked = wanted;
         $('voice-blocked').hidden = !(wanted && state.voice === 'fallback');
-        $('voice-hint').textContent = wanted && state.voice === 'on'
-            ? 'On. Sound from your speakers is being ignored.'
+        $('voice-hint').textContent = !voiceSupported ? 'Needs macOS 14.2 or later.'
+            : wanted && state.voice === 'on' ? 'On. Sound from your speakers is being ignored.'
             : 'Ignore sound from your speakers, so music or a loud call doesn’t count as you.';
 
         // Things that depend on what this Mac can do.
