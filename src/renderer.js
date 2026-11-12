@@ -82,18 +82,11 @@
         }
     }
 
-    // Voice Focus asks the audio engine to cancel everything the Mac is
-    // playing out of the microphone signal, so speakers don't count as you.
-    // To do that macOS must let the app hear system audio (it asks once).
-    // Without Voice Focus the request is exactly as it always was.
-    async function open(deviceId, voiceFocus) {
-        const audio = deviceId ? { deviceId: { exact: deviceId } } : {};
-        if (voiceFocus) audio.echoCancellation = 'all';
-        return navigator.mediaDevices.getUserMedia({ audio: Object.keys(audio).length ? audio : true });
-    }
+    // How Voice Focus is asked for lives in shared/voice-focus.js.
+    const { open, cancelling } = window.VoiceFocus;
 
     const VOICE_OPEN_MS = 3000;     // Longer than this to open means macOS is asking: listen normally meanwhile
-    const VOICE_SETTLE_MS = 3000;   // A blocked stream ends within this long of opening
+    const VOICE_SETTLE_MS = window.VoiceFocus.SETTLE_MS;
     const VOICE_PROBE_MS = 5000;    // How often to check whether permission has arrived
     const VOICE_PROBES = 12;        // ...and for how long (a minute), then wait to be asked
     let voiceBlocked = false;       // Wanted, but macOS won't let us hear system audio
@@ -111,11 +104,6 @@
         stage.dataset.voice = voice;
         api.reportVoice(voice);
     }
-
-    const cancelling = (opened) => {
-        const track = opened.getAudioTracks()[0];
-        return !!track && track.readyState === 'live' && track.getSettings().echoCancellation === 'all';
-    };
 
     // While blocked we listen normally, and quietly check now and then
     // whether the permission has been granted, so it starts working without

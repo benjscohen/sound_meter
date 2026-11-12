@@ -11,7 +11,7 @@ A beautiful, minimalist macOS desktop application that helps you monitor your vo
 - **Notifications, both opt-in:** a quiet nudge after sustained loudness, and a weekly note that your week is ready (never during a call), which opens your share card.
 - **Always on top:** stays above every window, including full-screen calls. Clicks pass through the empty space around it.
 - **One window:** click the orb to see your day in Sound Meter's single window, with a sidebar for Day, Trends and Settings (hover over the orb for a Settings button). Settings apply live, so you can adjust several things in one go while watching the orb. Right-click the orb, or use the menu-bar icon, for a quick menu. Drag the orb anywhere; it remembers where you put it.
-- **Guided first run:** a short welcome flow handles microphone permission and calibrates sensitivity to your voice.
+- **Guided first run:** if it is started from the installer or Downloads it offers to move itself to Applications; then a short welcome flow asks for the microphone, lets you see the orb react to your own voice, and explains the speakers (Voice Focus) permission before macOS asks for it.
 - **Insights:** a private, per-minute history of how loud you were. *Day* shows a timeline with a breakdown by meeting and by call app; *Trends* shows the last four weeks: a weekday/hour heatmap, a calm streak, and your loudest meetings, people and apps. Export to CSV or delete any time.
 - **Calendar (opt-in):** reads events from the macOS Calendar app to attribute loudness to meetings and people. Events are read on demand and never stored.
 - **Call detection:** notices which app is using the microphone (Zoom, Teams, FaceTime, a browser…) so each minute can be credited to it. Needs macOS 14.2 or later.
@@ -85,7 +85,9 @@ This project uses **GitHub Actions** for a fully automated CI/CD pipeline.
     2.  Builds the application.
     3.  Signs the code with an Apple Developer ID.
     4.  Notarizes the app with Apple.
-    5.  Publishes a new Release to GitHub with signed `.dmg` installers for Apple silicon (`-arm64`) and Intel (`-x64`), plus auto-update artifacts.
+    5.  Publishes a new Release to GitHub with `.dmg` installers for Apple silicon (`-arm64`) and Intel (`-x64`), plus auto-update artifacts.
+
+The installers are built by `scripts/dmg.js` rather than electron-builder's own dmg target, whose window layout recent versions of Finder ignore (the background never shows). The layout Finder draws from is recorded once into `assets/dmg/DS_Store`; after changing the installer's design, run `npm run dmg:layout` on a Mac and commit the result.
 
 ### Secrets
 

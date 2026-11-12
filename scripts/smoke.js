@@ -23,6 +23,7 @@ app.setPath('userData', profile);
 app.commandLine.appendSwitch('use-fake-device-for-media-stream');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 process.env.SOUND_METER_IDLE_GRACE_MS = '1500'; // Don't wait 45s for the orb to hide after a call
+process.env.SOUND_METER_OFFER_MOVE = '1';       // Walk through "Move to Applications?" too
 nativeTheme.themeSource = theme;
 fs.mkdirSync(out, { recursive: true });
 
@@ -161,37 +162,101 @@ async function run() {
     const welcome = await until(() => find('onboarding.html'), 'welcome window');
     await until(() => js(welcome, `document.querySelector('.step.active') !== null`), 'welcome content');
     if (find('index.html')) throw new Error('Meter should not appear before onboarding finishes');
+    // Started from "somewhere else": it offers to move itself first. Here the
+    // move fails, so it must say what to do instead and carry on.
+    let moves = 0;
+    app.moveToApplicationsFolder = () => { moves += 1; throw new Error('User rejected the authorization request'); };
+    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === 'move'
+        && document.getElementById('primary').textContent === 'Move to Applications'`), 'the offer to move');
     await wait(900);
+    await shoot(welcome, '0-move');
+    await js(welcome, `document.getElementById('primary').click()`);
+    await until(() => js(welcome, `!document.getElementById('move-callout').hidden
+        && document.getElementById('primary').textContent === 'Continue'`), 'the failed move to be explained');
+    if (moves !== 1) throw new Error(`Expected one attempt to move, saw ${moves}`);
+    await shoot(welcome, '0a-move-failed');
+    await js(welcome, `document.getElementById('primary').click()`);
+    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === 'welcome'`), 'welcome step');
+    await wait(600);
     await shoot(welcome, '1-welcome');
 
-    await js(welcome, `document.getElementById('primary').click()`);
-    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === '1'`), 'mic step');
+    const stepIs = (name) => js(welcome, `document.getElementById('wizard').dataset.step === ${JSON.stringify(name)}`);
+    const next = () => js(welcome, `document.getElementById('primary').click()`);
+    // Nothing on any step may run past the bottom of the window.
+    const fits = async (name) => {
+        const ok = await js(welcome, `(() => {
+            const step = document.querySelector('.step.active');
+            const shown = [...step.children].filter((el) => !el.hidden);
+            return shown[shown.length - 1].getBoundingClientRect().bottom <= step.getBoundingClientRect().bottom + 1;
+        })()`);
+        if (!ok) throw new Error(`The "${name}" onboarding step overflows its window`);
+    };
+    await fits('welcome');
+
+    // Microphone: not asked yet, so the step shows. (The real macOS prompt
+    // is never triggered here: the answer is supplied for it.)
+    let micStatus = 'not-determined';
+    ipcMain.removeHandler('mic:status');
+    ipcMain.handle('mic:status', () => micStatus);
+    await next();
+    await until(() => stepIs('mic'), 'microphone step');
+    await until(() => js(welcome, `document.getElementById('primary').textContent === 'Allow Microphone'`), 'the ask');
     await wait(500);
     await shoot(welcome, '2-microphone');
+    await fits('microphone');
 
-    // Don't trigger the real macOS permission prompt in a smoke test.
-    await js(welcome, `document.getElementById('secondary').click()`);
-    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === '2'`), 'calibrate step');
+    // Once access is there, it moves on by itself to the live preview and
+    // says so the moment it hears something (the fake microphone beeps).
+    micStatus = 'granted';
+    await js(welcome, `window.dispatchEvent(new Event('focus'))`);
+    await until(() => stepIs('try'), 'try-it step');
+    await until(() => js(welcome, `!document.getElementById('heard').hidden`), 'it to notice sound', 10000);
+    if (!(await js(welcome, `document.getElementById('sensitivity').hidden && !document.getElementById('sensitivity-toggle').hidden`))) {
+        throw new Error('Sensitivity presets should stay out of the way until asked for');
+    }
+    await wait(300);
+    await shoot(welcome, '3-try');
+    await fits('try');
+    await js(welcome, `document.getElementById('sensitivity-toggle').click()`);
     const levels = await js(welcome, `[...document.querySelectorAll('#sensitivity button')].map((b) => b.textContent + ':' + b.getAttribute('aria-pressed'))`);
     if (levels.length !== 6 || levels[0] !== 'Auto:true') throw new Error(`Auto should be the default sensitivity: ${levels}`);
-    await wait(300);
-    await shoot(welcome, '3a-calibrate-auto');
     await js(welcome, `document.querySelectorAll('#sensitivity button')[3].click()`); // Low
-    await wait(500);
-    await shoot(welcome, '3-calibrate');
+    await wait(400);
+    await shoot(welcome, '3a-try-sensitivity');
+    await fits('try, choosing a sensitivity');
 
-    await js(welcome, `document.getElementById('primary').click()`);
-    await until(() => js(welcome, `document.getElementById('wizard').dataset.step === '3'`), 'done step');
+    // Speakers: explained first, then asked. Here macOS "says yes" after a
+    // moment, so it confirms and carries on without another click.
+    await next();
+    await until(() => stepIs('speakers'), 'speakers step');
+    await until(() => js(welcome, `document.getElementById('primary').textContent === 'Allow'`), 'the speakers ask');
+    await wait(400);
+    await shoot(welcome, '4-speakers');
+    await fits('speakers');
+    await js(welcome, `(() => {
+        const media = navigator.mediaDevices;
+        const real = media.getUserMedia.bind(media);
+        media.getUserMedia = async (constraints) => {
+            if (!constraints || !constraints.audio || constraints.audio.echoCancellation !== 'all') return real(constraints);
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            const granted = await real({ audio: true });
+            const track = granted.getAudioTracks()[0];
+            const settings = track.getSettings.bind(track);
+            track.getSettings = () => ({ ...settings(), echoCancellation: 'all' });
+            return granted;
+        };
+    })()`);
+    await next();
+    await until(() => js(welcome, `(() => { const b = document.getElementById('primary'); return b.disabled && b.textContent === 'Waiting for macOS…'; })()`), 'it to wait for macOS');
+    await until(() => js(welcome, `document.getElementById('speakers-callout').classList.contains('ok')`), 'the yes to register', 10000);
+    await shoot(welcome, '4a-speakers-allowed');
+    await until(() => stepIs('done'), 'it to move on by itself', 5000);
     await wait(500);
-    await shoot(welcome, '4-done');
+    await shoot(welcome, '4b-done');
+    await fits('done');
 
     if (await js(welcome, `document.getElementById('weekly-recap').checked`)) throw new Error('Weekly recap must be off unless chosen');
-    const fits = await js(welcome, `(() => {
-        const step = document.querySelector('.step.active').getBoundingClientRect();
-        const last = document.querySelector('.step.active').lastElementChild.getBoundingClientRect();
-        return last.bottom <= step.bottom + 1;
-    })()`);
-    if (!fits) throw new Error('The last onboarding step overflows its window');
+    if ((await js(welcome, `document.getElementById('dots').children.length`)) !== 6) throw new Error('Expected one dot per step');
     await js(welcome, `document.getElementById('launch-at-login').checked = false; document.getElementById('primary').click()`);
 
     /* ---- Meter ---------------------------------------------------------- */
@@ -203,6 +268,7 @@ async function run() {
         throw new Error(`Chosen sensitivity not saved: ${state.settings.sensitivityMode} ${state.settings.sensitivity}`);
     }
     if (state.settings.weeklyRecap || state.settings.nudge) throw new Error('Notifications must start switched off');
+    if (state.settings.voiceFocus !== true) throw new Error('Allowing the speakers step should leave Voice Focus on');
 
     await until(() => js(meter, `document.getElementById('stage').dataset.state === 'listening'`), 'meter to start listening');
     await wait(1200);
