@@ -148,9 +148,19 @@ body {
     text-overflow: ellipsis;
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.2), inset 0 0 0 1px rgb(255 255 255 / 0.08);
     opacity: 0;
-    transform: translate(-50%, 4px);
+    /* --shift slides a label sideways to stay on screen when the orb is
+       against an edge (set by the renderer). */
+    transform: translate(calc(-50% + var(--shift, 0px)), 4px);
     transition: opacity 0.18s, transform 0.18s var(--ease);
     pointer-events: none;
+}
+
+/* At the bottom of the screen the labels go above the orb instead. */
+#stage.labels-above #pill,
+#stage.labels-above #options {
+    top: auto;
+    bottom: calc(50% + 46px);
+    transform: translate(calc(-50% + var(--shift, 0px)), -4px);
 }
 
 /* Hovering swaps any status message for a real, clickable Options button. */
@@ -179,7 +189,7 @@ body {
 #stage.hover #options,
 #stage.notice:not(.hover) #pill {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(calc(-50% + var(--shift, 0px)), 0);
 }
 
 #stage.hover #options {

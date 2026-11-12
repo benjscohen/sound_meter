@@ -14,6 +14,7 @@ const { createNudger, recapDue } = require('./src/main/reminders');
 const { createPresence } = require('./src/main/presence');
 const { describeUpdateError } = require('./src/main/update-errors');
 const { shouldOfferMove, moveToApplications } = require('./src/main/install');
+const { nearestArea, clampCentre, resolveCentre, roomAround } = require('./src/main/placement');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 // A released build refuses Chromium's remote-debugging switches. Left on,
@@ -30,7 +31,6 @@ if (app.isPackaged) {
 // and ripple have room at full size: anything reaching the edge of the
 // window is cut off in a hard line. (Checked by the end-to-end test.)
 const METER_SIZE = 256;
-const METER_INSET = 100;        // Where the orb's centre sits from the top-right corner by default
 const HISTORY_RETENTION_DAYS = 90;
 const TRENDS_DAYS = 28;
 const MIC_APP_POLL_MS = 5 * 1000;
@@ -142,6 +142,7 @@ function updateSettings(patch) {
     if (!settings.update(patch)) return;
     broadcastState();
     if (patch && ('onlyDuringCalls' in patch || 'paused' in patch)) pollMicApp();
+    if (patch && 'orbSize' in patch) placeMeter();     // A bigger orb needs more room at an edge
 }
 
 function getLaunchAtLogin() {
@@ -328,22 +329,35 @@ function disconnectCalendar() {
 
 // The saved position is where the orb's centre is, so it means the same
 // thing whatever size the window around it happens to be.
-function meterCentre() {
-    const saved = settings.get('position');
-    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-        // Use it only if it is still on a connected display.
-        const onScreen = screen.getAllDisplays().some(({ workArea: a }) =>
-            saved.x >= a.x && saved.x <= a.x + a.width &&
-            saved.y >= a.y && saved.y <= a.y + a.height);
-        if (onScreen) return saved;
-    }
-    const { x, y, width } = screen.getPrimaryDisplay().workArea;
-    return { x: x + width - METER_INSET, y: y + METER_INSET };
-}
+const workAreas = () => screen.getAllDisplays().map((display) => display.workArea);
+const orbDiameter = () => (CONSTANTS.ORB_DIAMETERS[settings.get('orbSize')] || CONSTANTS.ORB_DIAMETERS.medium)[0];
+const windowAt = (centre) => ({ x: Math.round(centre.x - METER_SIZE / 2), y: Math.round(centre.y - METER_SIZE / 2) });
 
 function resolveMeterPosition() {
-    const centre = meterCentre();
-    return { x: Math.round(centre.x - METER_SIZE / 2), y: Math.round(centre.y - METER_SIZE / 2) };
+    return windowAt(resolveCentre({
+        saved: settings.get('position'),
+        areas: workAreas(),
+        primary: screen.getPrimaryDisplay().workArea,
+        diameter: orbDiameter()
+    }));
+}
+
+// Puts the orb back where it belongs: after a reset, a change of size, or a
+// screen being unplugged or resized.
+function placeMeter() {
+    if (!meterWindow || dragOrigin) return;
+    const { x, y } = resolveMeterPosition();
+    meterWindow.setPosition(x, y);
+    reportRoom();
+}
+
+// Tells the orb how close it is to the edges of its screen, so its labels
+// can keep out of the way of them.
+function reportRoom() {
+    if (!meterWindow) return;
+    const [x, y] = meterWindow.getPosition();
+    const centre = { x: x + METER_SIZE / 2, y: y + METER_SIZE / 2 };
+    sendToMeter('meter:moved', roomAround(centre, nearestArea(centre, workAreas())));
 }
 
 function createMeterWindow() {
@@ -367,7 +381,10 @@ function createMeterWindow() {
         hasShadow: false,
         skipTaskbar: true,
         show: false,
-        type: 'panel' // Floats without stealing focus on macOS
+        type: 'panel', // Floats without stealing focus on macOS
+        // The window is mostly empty room for the glow. Without this macOS
+        // keeps all of it below the menu bar, and the orb out of the corners.
+        enableLargerThanScreen: true
     });
 
     // Stay visible over full-screen apps (video calls, slides).
@@ -378,6 +395,7 @@ function createMeterWindow() {
     meterWindow.setIgnoreMouseEvents(true, { forward: true });
 
     meterWindow.loadFile('src/index.html');
+    meterWindow.webContents.on('did-finish-load', reportRoom);
     meterWindow.once('ready-to-show', () => {
         if (runtime.idle) hiddenWhileIdle = true;
         else meterWindow.showInactive();
@@ -470,9 +488,8 @@ const openSettings = () => openPanel('settings');
 
 function resetMeterPosition() {
     updateSettings({ position: null });
-    const win = createMeterWindow();
-    const { x, y } = resolveMeterPosition();
-    win.setPosition(x, y);
+    createMeterWindow();
+    placeMeter();
 }
 
 // What the Settings panel can ask for beyond changing a setting.
@@ -828,18 +845,25 @@ function registerIpc() {
         if (meterWindow) meterWindow.setIgnoreMouseEvents(!!ignore, { forward: true });
     });
 
+    // A drag moves the orb's centre, which stops at the edges of the screen
+    // it is on (or nearest to) so the orb can't be lost off the side.
     ipcMain.on('meter:drag-start', () => {
-        if (meterWindow) dragOrigin = meterWindow.getPosition();
+        if (!meterWindow) return;
+        const [x, y] = meterWindow.getPosition();
+        dragOrigin = { x: x + METER_SIZE / 2, y: y + METER_SIZE / 2 };
     });
     ipcMain.on('meter:drag-move', (_event, dx, dy) => {
         if (!meterWindow || !dragOrigin || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
-        meterWindow.setPosition(Math.round(dragOrigin[0] + dx), Math.round(dragOrigin[1] + dy));
+        const wanted = { x: dragOrigin.x + dx, y: dragOrigin.y + dy };
+        const { x, y } = windowAt(clampCentre(wanted, nearestArea(wanted, workAreas()), orbDiameter()));
+        meterWindow.setPosition(x, y);
     });
     ipcMain.on('meter:drag-end', () => {
         if (!meterWindow || !dragOrigin) return;
         const [x, y] = meterWindow.getPosition();
         dragOrigin = null;
         settings.update({ position: { x: x + METER_SIZE / 2, y: y + METER_SIZE / 2 } });
+        reportRoom();
     });
 
     ipcMain.handle('mic:status', () => systemPreferences.getMediaAccessStatus('microphone'));
@@ -972,6 +996,7 @@ if (!app.requestSingleInstanceLock()) {
             fixturesPath: process.env.SOUND_METER_FIXTURES || null,
             ownBundleIds: ['com.benjscohen.soundmeter', 'com.github.electron']
         });
+        for (const change of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(change, placeMeter);
         setInterval(pollMicApp, MIC_APP_POLL_MS);
         pollMicApp();
         setTimeout(checkWeeklyRecap, 60 * 1000);

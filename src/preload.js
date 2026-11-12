@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('soundMeter', {
     sendSample: (sample) => ipcRenderer.send('meter:sample', sample),
     reportVoice: (voice) => ipcRenderer.send('meter:voice', voice),
     onNotice: (callback) => subscribe('meter:notice', callback),
+    onMoved: (callback) => subscribe('meter:moved', callback),
     openMenu: () => ipcRenderer.send('meter:menu'),
     setIgnoreMouse: (ignore) => ipcRenderer.send('meter:ignore-mouse', ignore),
     dragStart: () => ipcRenderer.send('meter:drag-start'),

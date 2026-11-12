@@ -10,10 +10,11 @@
     const pill = document.getElementById('pill');
     const options = document.getElementById('options');
 
-    // Resting and fully-grown diameters for each orb size (the window is 168px).
-    const ORB_SIZES = { small: [44, 110], medium: [60, 138], large: [76, 150] };
+    const ORB_SIZES = V.CONSTANTS.ORB_DIAMETERS;
     const ALERT_AFTER_MS = 1500;     // Sustained loudness before the ripple
     const DRAG_THRESHOLD = 4;        // Pixels of movement that turn a click into a drag
+    const LABEL_GAP = 6;             // Closest a label comes to the side of the screen
+    const LABEL_DROP = 80;           // Room a label needs below the orb's centre
     const RETRY_MS = 4000;
     const HOVER_GRACE_MS = 400;      // Time to travel from the orb to the Options button
 
@@ -33,6 +34,20 @@
 
     /* ------------------------------------------------------------ status */
 
+    // The orb can sit right against a screen edge, where a label centred
+    // under it would run off the screen: slide each one sideways just far
+    // enough to fit, and put them above the orb at the bottom of the screen.
+    let room = { left: Infinity, right: Infinity, below: Infinity };
+
+    function placeLabels() {
+        stage.classList.toggle('labels-above', room.below < LABEL_DROP);
+        for (const label of [pill, options]) {
+            const half = label.offsetWidth / 2 + LABEL_GAP;
+            const shift = Math.max(0, half - room.left) - Math.max(0, half - room.right);
+            label.style.setProperty('--shift', `${Math.round(shift)}px`);
+        }
+    }
+
     function setMode(mode, message) {
         stage.dataset.state = mode;
         if (mode !== 'listening') {
@@ -43,12 +58,14 @@
         if (message) pill.textContent = message;
         // Problems stay visible; normal states only show the pill on hover.
         stage.classList.toggle('notice', mode === 'denied' || mode === 'no-device' || mode === 'idle');
+        placeLabels();
         const status = mode === 'denied' || mode === 'no-device' ? mode : mode === 'listening' ? 'granted' : null;
         if (status) api.reportMicStatus(status);
     }
 
     function flashNotice(message, ms = 4500) {
         pill.textContent = message;
+        placeLabels();
         stage.classList.add('notice');
         clearTimeout(noticeTimer);
         noticeTimer = setTimeout(() => {
@@ -326,6 +343,7 @@
 
     function applyHover(over) {
         hovering = over;
+        if (over) placeLabels();
         stage.classList.toggle('hover', over);
         api.setIgnoreMouse(!over);
     }
@@ -424,6 +442,10 @@
 
     api.onState(onState);
     api.onNotice((message) => flashNotice(message, 6000));
+    api.onMoved((around) => {
+        room = around;
+        placeLabels();
+    });
     api.getState().then((initial) => {
         onState(initial);
         requestAnimationFrame(frame);
