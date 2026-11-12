@@ -50,7 +50,6 @@ npm start
 
 ```bash
 npm test         # unit tests (meter maths, history store, settings)
-npm run demo          # re-renders the website film from the smoke-test screenshots (needs ffmpeg)
 npm run check:site    # the website's logic: share links, share page, preview image, download picking
 npm run smoke    # boots the real app with a fake microphone, walks through
                  # onboarding, the meter and Insights, and saves screenshots to ./shots
@@ -71,9 +70,9 @@ npm run smoke    # boots the real app with a fake microphone, walks through
 
 The `landing_page/` directory contains the source code for the product website (e.g., `shhh.it.com`).
 
-- **Live Download Count:** The site fetches data from the GitHub API to display the total number of downloads across all releases in real-time.
+- **Download count:** fetched from the GitHub API and shown once it passes 1,000.
 - **Dynamic Links:** Download buttons automatically point to the latest available release artifact.
-- **Pages:** `/changelog` and `/privacy` are plain HTML pages built by Vite; changelog entries for a version appear once that version is released.
+- **Pages:** `/privacy` is a plain HTML page built by Vite. Release notes live on GitHub Releases.
 - **Share pages:** `/s?…` (served by `landing_page/api/share.js`) shows a shared week, and `/api/og` renders its link-preview image. Both are stateless: every number comes from the query string and is range-checked.
 
 ## Build & Release

@@ -1,5 +1,5 @@
 import { inject } from '@vercel/analytics';
-import { REPO, chipFromHints, installers, revealForVersion } from './release.js';
+import { REPO, chipFromHints, installers } from './release.js';
 
 inject();
 
@@ -48,13 +48,21 @@ let level = 0;
 let shownZone = null;
 let visible = true;
 
-// Until someone turns on their mic, the orb "speaks" by itself: phrases
-// with pauses, occasionally getting carried away.
-function simulated(t) {
-    const phrase = Math.max(0, Math.sin(t / 1700) + 0.15);
-    const syllables = 0.55 + 0.45 * Math.sin(t / 160) * Math.sin(t / 97);
-    const excitement = Math.pow(0.5 + 0.5 * Math.sin(t / 6100), 2);
-    return phrase * syllables * (38 + excitement * 135);
+// Until someone turns on their mic, the orb tells its own short story, slowly
+// enough to follow: talking comfortably, getting carried away, noticing, and
+// settling back down. [seconds, level], eased from one point to the next.
+const STORY = [[0, 30], [5, 42], [8.5, 84], [11, 122], [12.5, 118], [16, 40], [18.5, 26], [20, 30]];
+const STORY_SECONDS = STORY[STORY.length - 1][0];
+
+function simulated(now) {
+    const t = (now / 1000) % STORY_SECONDS;
+    const next = STORY.findIndex(([at]) => at > t);
+    const [t0, v0] = STORY[next - 1];
+    const [t1, v1] = STORY[next];
+    const eased = 0.5 - 0.5 * Math.cos(Math.PI * (t - t0) / (t1 - t0));
+    // A slow rise and fall on top, like the swell of a sentence.
+    const breath = 1 + 0.1 * Math.sin(now / 1400) + 0.05 * Math.sin(now / 610);
+    return (v0 + (v1 - v0) * eased) * breath;
 }
 
 function measure(now) {
@@ -65,12 +73,20 @@ function measure(now) {
     return sum / data.length;
 }
 
+// How quickly the orb follows the level, as time constants in milliseconds.
+// It rises faster than it falls, like the app, but never twitches.
+const FOLLOW = { live: { up: 110, down: 420 }, story: { up: 380, down: 380 } };
+let lastFrame = 0;
+
 function frame(now) {
     requestAnimationFrame(frame);
+    const elapsed = Math.min(now - lastFrame, 100);
+    lastFrame = now;
     if (!visible) return;
 
     const raw = measure(now);
-    level += (raw - level) * (raw > level ? 0.4 : 0.07);
+    const follow = analyser ? FOLLOW.live : FOLLOW.story;
+    level += (raw - level) * (1 - Math.exp(-elapsed / (raw > level ? follow.up : follow.down)));
     const ratio = Math.min(level / SENSITIVITY, 1);
     const colour = colorFor(ratio).join(' ');
 
@@ -143,14 +159,6 @@ if (reducedMotion) {
 
 /* ----------------------------------------------------------- page polish */
 
-// The film plays quietly on a loop, unless you've asked for less motion.
-const film = $('film');
-if (reducedMotion) {
-    film.removeAttribute('autoplay');
-    film.pause();
-    film.controls = true;
-}
-
 const nav = $('nav');
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12);
 window.addEventListener('scroll', onScroll, { passive: true });
@@ -158,7 +166,7 @@ onScroll();
 
 // Fade sections in as they scroll into view.
 const revealTargets = document.querySelectorAll(
-    '.section-head, .zone, .film, .feature, .step, .split-copy, .insights-card, .share-shot, .story, .faq, .closing-inner');
+    '.section-head, .why-inner, .zone, .feature, .trust-card, .step, .split-copy, .insights-card, .share-shot, .faq, .closing-inner');
 const revealer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
         if (!entry.isIntersecting) continue;
@@ -204,7 +212,7 @@ document.querySelectorAll('[data-download]').forEach((link) => {
         if (!link.dataset.direct) return; // Still pointing at the GitHub page
         setTimeout(() => {
             $('download-banner').hidden = false;
-            document.querySelector('.steps').classList.add('next-up');
+            $('quick-steps').classList.add('next-up');
             $('install').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
         }, 500);
     });
@@ -264,9 +272,7 @@ async function applyRelease({ version, urls, downloads }) {
         });
     }
     if (version) {
-        $('version-text').textContent = `Version ${version}`;
-        // Sections describing newer features appear once that release is out.
-        revealForVersion(version);
+        $('version-text').textContent = ` · Version ${version}`;
     }
     if (downloads >= 1000) {
         const count = $('download-count');

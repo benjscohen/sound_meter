@@ -365,28 +365,6 @@ a {
     gap: 64px;
 }
 
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    padding: 6px 13px 6px 11px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    color: var(--ink-2);
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.eyebrow .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgb(var(--g));
-    box-shadow: 0 0 0 3px rgb(var(--g) / 0.2);
-}
-
 /* Lines break where they read well, and never leave one word on its own. */
 p,
 li,
@@ -732,32 +710,32 @@ h3 {
 }
 
 .zone-good {
-    animation: pulse-good 3.2s ease-in-out infinite;
+    animation: pulse-good 5s ease-in-out infinite;
 }
 
 .zone-elevated {
     --c: var(--a);
-    animation: pulse-elevated 1.9s ease-in-out infinite;
+    animation: pulse-elevated 4.2s ease-in-out infinite;
 }
 
 .zone-loud {
     --c: var(--r);
-    animation: pulse-loud 1.1s ease-in-out infinite;
+    animation: pulse-loud 3.4s ease-in-out infinite;
 }
 
 @keyframes pulse-good {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.14); }
+    50% { transform: scale(1.07); }
 }
 
 @keyframes pulse-elevated {
     0%, 100% { transform: scale(1.45); }
-    50% { transform: scale(1.75); }
+    50% { transform: scale(1.58); }
 }
 
 @keyframes pulse-loud {
     0%, 100% { transform: scale(2.05); }
-    50% { transform: scale(2.3); }
+    50% { transform: scale(2.16); }
 }
 
 /* ---------------------------------------------------------------- features */
@@ -766,6 +744,11 @@ h3 {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 44px 40px;
+}
+
+.features.four {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 40px 32px;
 }
 
 .feature .icon {
@@ -957,7 +940,7 @@ h3 {
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.steps.next-up .step:nth-child(2) {
+.quick-steps.next-up li:nth-child(2) {
     border-color: rgb(var(--g) / 0.7);
     box-shadow: 0 0 0 4px rgb(var(--g) / 0.14), var(--shadow);
 }
@@ -1027,25 +1010,99 @@ h3 {
     text-align: center;
 }
 
-/* ------------------------------------------------------------------- story */
+/* --------------------------------------------------------------------- why */
 
-.story {
-    max-width: 800px;
+.why-inner {
+    max-width: 780px;
     text-align: center;
 }
 
+.why h2 {
+    font-size: clamp(30px, 4.4vw, 48px);
+    line-height: 1.08;
+}
+
+/* The second sentence answers the first, a shade quieter. */
+.why h2 span {
+    color: var(--ink-3);
+}
+
+.why-inner > p {
+    max-width: 600px;
+    margin: 22px auto 0;
+    color: var(--ink-2);
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.quote {
+    max-width: 560px;
+    margin: 44px auto 0;
+    padding-top: 36px;
+    border-top: 1px solid var(--line);
+}
+
 blockquote {
-    font-size: clamp(24px, 3.4vw, 36px);
-    line-height: 1.25;
-    font-weight: 650;
-    letter-spacing: -0.028em;
+    font-size: clamp(19px, 2.2vw, 23px);
+    line-height: 1.4;
+    font-weight: 600;
+    letter-spacing: -0.018em;
     text-wrap: balance;
 }
 
-.by {
-    margin-top: 20px;
+.quote figcaption {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
     color: var(--ink-3);
+    font-size: 14.5px;
+}
+
+/* ------------------------------------------------------------------- trust */
+
+.trust {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.trust-card {
+    padding: 28px 26px 30px;
+}
+
+.trust-card .icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 18px;
+    border-radius: 12px;
+    background: rgb(var(--g) / 0.12);
+    color: var(--green);
+}
+
+.trust-card svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.trust-card p {
+    margin-top: 6px;
+    color: var(--ink-2);
     font-size: 15px;
+}
+
+.trust-card a,
+.fineprint a {
+    color: var(--ink);
+    font-weight: 500;
+    text-underline-offset: 3px;
 }
 
 /* --------------------------------------------------------------------- faq */
@@ -1125,6 +1182,52 @@ blockquote {
 
 .closing h2 em {
     font-style: italic;
+}
+
+.closing .download-banner {
+    margin: 0 auto 22px;
+}
+
+.closing .chip-note {
+    margin-top: 14px;
+    color: var(--ink-3);
+    font-size: 13.5px;
+}
+
+/* Install is three small steps, so they sit right under the button. */
+.quick-steps {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 34px 0 6px;
+    list-style: none;
+}
+
+.quick-steps li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--ink-2);
+    font-size: 14.5px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.quick-steps b {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 12.5px;
+    font-weight: 700;
 }
 
 /* ------------------------------------------------------------------ footer */
@@ -1374,54 +1477,6 @@ blockquote {
     font-size: 14px;
 }
 
-.release {
-    margin-top: 40px;
-    padding-top: 36px;
-    border-top: 1px solid var(--line);
-}
-
-.release h2 {
-    margin-top: 0;
-}
-
-.release-meta {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px !important;
-    color: var(--ink-3) !important;
-    font-size: 14px;
-}
-
-.tag {
-    padding: 2px 9px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--ink);
-    font-size: 12.5px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-/* ------------------------------------------------------------- demo video */
-
-.film {
-    max-width: 960px;
-    margin: 56px auto 0;
-    overflow: hidden;
-    padding: 0;
-    box-shadow: var(--shadow-lg);
-}
-
-.film video {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    background: var(--tint);
-}
-
 /* -------------------------------------------------------------- responsive */
 
 @media (max-width: 960px) {
@@ -1463,7 +1518,8 @@ blockquote {
         margin: 0 auto;
     }
 
-    .features {
+    .features,
+    .features.four {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -1487,6 +1543,7 @@ blockquote {
     }
 
     .zones,
+    .trust,
     .steps {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -1505,7 +1562,8 @@ blockquote {
         padding: 0 20px;
     }
 
-    .features {
+    .features,
+    .features.four {
         grid-template-columns: minmax(0, 1fr);
         gap: 32px;
     }
