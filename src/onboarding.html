@@ -12,7 +12,7 @@
 <body>
     <div class="titlebar"></div>
 
-    <main id="wizard" data-step="0">
+    <main id="wizard" data-step="welcome">
         <div class="hero" aria-hidden="true">
             <div class="halo"></div>
             <div class="orb" id="preview-orb"></div>
@@ -20,38 +20,38 @@
         </div>
 
         <div class="steps">
-            <section class="step" data-index="0">
+            <section class="step" data-name="welcome">
                 <h1>Know when you’re getting loud.</h1>
-                <p>Sound Meter is a small orb that floats above your work. It stays green while you’re speaking
-                    comfortably and warms to red when you’re not.</p>
+                <p>Sound Meter is a small orb that floats over your calls. Green when you’re comfortable, red when
+                    you’re too loud.</p>
             </section>
 
-            <section class="step" data-index="1">
-                <h1>Allow microphone access</h1>
-                <p>Sound Meter only measures how loud you are. Audio is never recorded, stored, or sent anywhere —
-                    everything happens on this Mac.</p>
-                <div class="callout" id="mic-callout" hidden>
-                    <svg class="icon-warn" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 9v4m0 3.5v.01M10.3 4.3 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
-                    </svg>
-                    <svg class="icon-ok" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="m8 12.5 2.7 2.7L16 9.5" />
-                    </svg>
-                    <span id="mic-callout-text"></span>
-                </div>
+            <section class="step" data-name="mic">
+                <h1>Let it hear you</h1>
+                <p>Sound Meter measures how loud you are and nothing else. Audio is never recorded, stored or sent
+                    anywhere.</p>
+                <div class="callout" id="mic-callout" hidden><span></span></div>
             </section>
 
-            <section class="step" data-index="2">
-                <h1>Tune it to your voice</h1>
-                <p id="calibrate-copy">Say a sentence the way you’d normally talk. Leave it on Auto and Sound Meter
-                    tunes itself to your voice, or pick the setting where the orb stays green.</p>
-                <div class="segmented" id="sensitivity" role="group" aria-label="Sensitivity"></div>
+            <section class="step" data-name="try">
+                <h1 id="try-title">Now say something</h1>
+                <p id="try-copy"></p>
+                <div class="callout ok" id="heard" role="status" hidden><span></span></div>
+                <div class="segmented" id="sensitivity" role="group" aria-label="Sensitivity" hidden></div>
                 <p class="hint" id="sensitivity-hint"></p>
+                <button class="link" id="sensitivity-toggle" type="button">Set the sensitivity yourself</button>
             </section>
 
-            <section class="step" data-index="3">
+            <section class="step" data-name="speakers">
+                <h1>Ignore your speakers</h1>
+                <p>Music or a loud call shouldn’t count as you. Sound Meter can subtract whatever your Mac is
+                    playing, so only your voice moves the orb.</p>
+                <div class="callout note" id="speakers-callout" role="status"><span></span></div>
+            </section>
+
+            <section class="step" data-name="done">
                 <h1>You’re all set</h1>
+                <p>The orb will appear at the top right of your screen.</p>
                 <ul class="tips">
                     <li>
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -80,14 +80,6 @@
                         </span>
                         <span class="switch"><input type="checkbox" id="launch-at-login" checked><span></span></span>
                     </label>
-                    <label class="toggle-row" id="voice-focus-row">
-                        <span>
-                            <b>Ignore my speakers</b>
-                            <small>macOS will ask once to hear what your Mac plays. It’s only subtracted, never
-                                recorded.</small>
-                        </span>
-                        <span class="switch"><input type="checkbox" id="voice-focus" checked><span></span></span>
-                    </label>
                     <label class="toggle-row">
                         <span>
                             <b>Weekly recap</b>
@@ -99,8 +91,18 @@
             </section>
         </div>
 
+        <template id="callout-icons">
+            <svg class="icon-warn" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 9v4m0 3.5v.01M10.3 4.3 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+            </svg>
+            <svg class="icon-ok" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8 12.5 2.7 2.7L16 9.5" />
+            </svg>
+        </template>
+
         <footer>
-            <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="dots" id="dots" aria-hidden="true"></div>
             <div class="actions">
                 <button class="btn ghost" id="secondary" type="button" hidden></button>
                 <button class="btn primary" id="primary" type="button">Get started</button>
@@ -109,6 +111,7 @@
     </main>
 
     <script src="utils/audio-visualizer.js"></script>
+    <script src="shared/voice-focus.js"></script>
     <script src="onboarding.js"></script>
 </body>
 

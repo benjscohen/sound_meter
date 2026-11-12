@@ -13,6 +13,7 @@ const { createCalibrator } = require('./src/main/calibration');
 const { createNudger, recapDue } = require('./src/main/reminders');
 const { createPresence } = require('./src/main/presence');
 const { describeUpdateError } = require('./src/main/update-errors');
+const { offerMoveToApplications } = require('./src/main/install');
 const { CONSTANTS } = require('./src/utils/audio-visualizer');
 
 // A released build refuses Chromium's remote-debugging switches. Left on,
@@ -487,7 +488,7 @@ function openOnboarding() {
     }
     onboardingWindow = createPanelWindow('src/onboarding.html', {
         width: 520,
-        height: 724,
+        height: 680,
         resizable: false,
         maximizable: false,
         title: 'Welcome to Sound Meter'
@@ -947,7 +948,11 @@ if (!app.requestSingleInstanceLock()) {
         else createMeterWindow();
     });
 
-    app.whenReady().then(() => {
+    app.whenReady().then(async () => {
+        // Started from the installer window or Downloads: offer to settle in
+        // properly first. If it moves, the copy in Applications takes over.
+        if (await offerMoveToApplications({ app, dialog, settings })) return;
+
         history = createHistory(path.join(app.getPath('userData'), 'history'));
         history.prune(HISTORY_RETENTION_DAYS);
         native = createNative({

@@ -25,7 +25,7 @@ const page = (width, height, body, css = '') => `<!doctype html><meta charset="u
     html,body{width:${width}px;height:${height}px;overflow:hidden;font-family:${FONT};-webkit-font-smoothing:antialiased}
     ${css}</style>${body}`;
 
-// Icons sit at x=180 and x=480, y=215 (see "dmg.contents" in package.json).
+// Icons sit at x=180 and x=480, y=215 (see INSTALLER in scripts/dmg.js).
 const dmg = page(660, 420, `
     <div class="bg">
         <h1>Drag Sound Meter into Applications</h1>

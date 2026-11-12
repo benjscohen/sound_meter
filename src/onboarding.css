@@ -52,7 +52,7 @@ body {
     transition: opacity 0.2s;
 }
 
-#wizard[data-step="2"] .zone:not(:empty) {
+#wizard[data-step="try"] .zone:not(:empty) {
     opacity: 1;
 }
 
@@ -141,6 +141,38 @@ h1 {
 
 .callout.ok {
     background: var(--green-soft);
+}
+
+/* Plain information: nothing to warn about, so no icon. */
+.callout.note {
+    background: var(--surface-2);
+    color: var(--ink-2);
+    text-align: center;
+}
+
+.callout.note svg {
+    display: none;
+}
+
+.step .link {
+    appearance: none;
+    padding: 2px 4px;
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12.5px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.step .link:hover {
+    color: var(--ink);
+}
+
+.step [hidden] {
+    display: none;
 }
 
 .callout .icon-ok,

@@ -14,7 +14,8 @@
     "smoke": "electron -r ./scripts/smoke.js .",
     "assets": "node scripts/make-tray-icon.js && electron scripts/render-assets.js",
     "build:helper": "sh scripts/build-helper.sh",
-    "check:site": "node scripts/check-site.mjs"
+    "check:site": "node scripts/check-site.mjs",
+    "dmg:layout": "node scripts/record-dmg-layout.js"
   },
   "build": {
     "publish": {
@@ -25,13 +26,6 @@
     "productName": "Sound Meter",
     "mac": {
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        },
         {
           "target": "zip",
           "arch": [
@@ -57,27 +51,7 @@
       "artifactName": "Sound-Meter-${version}-${arch}.${ext}"
     },
     "afterSign": "scripts/notarize.js",
-    "dmg": {
-      "title": "Install Sound Meter",
-      "background": "assets/dmg/background.png",
-      "iconSize": 112,
-      "window": {
-        "width": 660,
-        "height": 420
-      },
-      "contents": [
-        {
-          "x": 180,
-          "y": 215
-        },
-        {
-          "x": 480,
-          "y": 215,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
+    "afterAllArtifactBuild": "scripts/dmg.js",
     "files": [
       "main.js",
       "src/**/*",

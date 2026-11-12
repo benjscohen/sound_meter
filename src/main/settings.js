@@ -7,6 +7,7 @@ const REVISION = 2;
 const DEFAULTS = Object.freeze({
     revision: REVISION,
     onboarded: false,
+    declinedMove: false,        // Said "Not Now" to moving into Applications
     sensitivity: 140,
     sensitivityMode: 'auto',    // 'auto' learns your voice once; 'manual' uses the chosen preset
     calibrated: false,          // Whether 'auto' has finished learning
