@@ -194,16 +194,23 @@ h1 {
     font-weight: 600;
 }
 
-.toggle-row {
+.toggles {
     width: 100%;
     margin-top: 6px;
-    padding: 12px 14px;
+    text-align: left;
+    box-shadow: var(--shadow-sm);
+}
+
+.toggle-row {
+    padding: 10px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    text-align: left;
-    box-shadow: var(--shadow-sm);
+}
+
+.toggle-row + .toggle-row {
+    border-top: 1px solid var(--line);
 }
 
 .toggle-row small {

@@ -623,7 +623,8 @@
     // The orb, the menu and notifications all open this one window and say
     // where to land. The weekly recap asks for Trends with the share card up.
     api.onShow(async ({ view: wanted, share }) => {
-        await go(wanted);
+        // Asked for Insights in general: stay on Trends if that's where we are.
+        await go(wanted === 'insights' ? (view === 'trends' ? 'trends' : 'day') : wanted);
         if (share) openShare();
     });
     if (new URLSearchParams(location.search).get('share')) {

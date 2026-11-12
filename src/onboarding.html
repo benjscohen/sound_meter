@@ -57,35 +57,45 @@
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M9 3.5v9.2l-2.2-1.6a1.4 1.4 0 0 0-1.9 2l3.9 5.2a4 4 0 0 0 3.2 1.7h2.5a4 4 0 0 0 4-4v-5.2a1.5 1.5 0 0 0-3 0m0 0V9.3a1.5 1.5 0 0 0-3 0m0 0V8.6a1.5 1.5 0 0 0-3 0" />
                         </svg>
-                        <span><b>Click the orb</b> for settings: microphone, sensitivity, size and more.</span>
+                        <span><b>Click the orb</b> to see how your day sounded.</span>
                     </li>
                     <li>
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3" />
                         </svg>
-                        <span><b>Drag it anywhere.</b> It floats above every window, even full-screen calls.</span>
+                        <span><b>Drag it anywhere.</b> It floats above every window.</span>
                     </li>
                     <li>
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M4 19V10m5.3 9V5m5.4 14v-6M20 19V8" />
                         </svg>
-                        <span><b>Open Insights</b> from the menu to see how your day sounded.</span>
+                        <span><b>Hover over it</b> for Settings, or right-click for the menu.</span>
                     </li>
                 </ul>
-                <label class="toggle-row card">
-                    <span>
-                        <b>Launch at login</b>
-                        <small>Sound Meter is ready whenever your Mac is.</small>
-                    </span>
-                    <span class="switch"><input type="checkbox" id="launch-at-login" checked><span></span></span>
-                </label>
-                <label class="toggle-row card">
-                    <span>
-                        <b>Weekly recap</b>
-                        <small>One quiet notification when your week is ready.</small>
-                    </span>
-                    <span class="switch"><input type="checkbox" id="weekly-recap"><span></span></span>
-                </label>
+                <div class="toggles card">
+                    <label class="toggle-row">
+                        <span>
+                            <b>Launch at login</b>
+                            <small>Sound Meter is ready whenever your Mac is.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" id="launch-at-login" checked><span></span></span>
+                    </label>
+                    <label class="toggle-row" id="voice-focus-row">
+                        <span>
+                            <b>Ignore my speakers</b>
+                            <small>macOS will ask once to hear what your Mac plays. It’s only subtracted, never
+                                recorded.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" id="voice-focus" checked><span></span></span>
+                    </label>
+                    <label class="toggle-row">
+                        <span>
+                            <b>Weekly recap</b>
+                            <small>One quiet notification when your week is ready.</small>
+                        </span>
+                        <span class="switch"><input type="checkbox" id="weekly-recap"><span></span></span>
+                    </label>
+                </div>
             </section>
         </div>
 

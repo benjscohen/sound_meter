@@ -92,6 +92,7 @@
         return navigator.mediaDevices.getUserMedia({ audio: Object.keys(audio).length ? audio : true });
     }
 
+    const VOICE_OPEN_MS = 3000;     // Longer than this to open means macOS is asking: listen normally meanwhile
     const VOICE_SETTLE_MS = 3000;   // A blocked stream ends within this long of opening
     const VOICE_PROBE_MS = 5000;    // How often to check whether permission has arrived
     const VOICE_PROBES = 12;        // ...and for how long (a minute), then wait to be asked
@@ -99,6 +100,12 @@
     let voiceRetry = 0;
     let probeTimer = null;
     let probesLeft = 0;
+    let lateVoice = null;           // A Voice Focus stream that arrived after we stopped waiting for it
+
+    // Wanted, and something this Mac can do.
+    const wantsVoice = (s = state) => !!s.settings.voiceFocus && s.voiceSupported !== false;
+    const release = (opened) => opened && opened.getTracks().forEach((track) => track.stop());
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     function reportVoice(voice) {
         stage.dataset.voice = voice;
@@ -118,7 +125,7 @@
         if (!voiceBlocked || probesLeft <= 0) return;
         probesLeft -= 1;
         probeTimer = setTimeout(async () => {
-            if (!voiceBlocked || !state.settings.voiceFocus) return;
+            if (!voiceBlocked || !wantsVoice()) return;
             let trial = null;
             try {
                 trial = await open(state.settings.deviceId, true);
@@ -144,37 +151,66 @@
         scheduleProbe();
     }
 
-    async function openWithFallback(deviceId) {
-        if (!state.settings.voiceFocus) {
+    // A working Voice Focus stream: use it, and notice if macOS takes it away.
+    function useVoice(opened) {
+        const openedAt = performance.now();
+        opened.getAudioTracks()[0].addEventListener('ended', () => {
+            if (stream !== opened) return;
+            // Ending straight away means macOS refused; later it is
+            // something else (a device change), so just start again.
+            if (performance.now() - openedAt < VOICE_SETTLE_MS) blockVoice();
+            activeKey = null;
+            start();
+        }, { once: true });
+        reportVoice('on');
+        return opened;
+    }
+
+    async function openWithFallback(deviceId, ready = null) {
+        if (!wantsVoice()) {
+            release(ready);
             voiceBlocked = false;
             clearTimeout(probeTimer);
             reportVoice('off');
             return open(deviceId, false);
         }
+        if (ready) {
+            if (cancelling(ready)) return useVoice(ready);
+            release(ready);
+        }
         if (!voiceBlocked) {
-            const opened = await open(deviceId, true);
-            if (cancelling(opened)) {
-                const openedAt = performance.now();
-                opened.getAudioTracks()[0].addEventListener('ended', () => {
-                    if (stream !== opened) return;
-                    // Ending straight away means macOS refused; later it is
-                    // something else (a device change), so just start again.
-                    if (performance.now() - openedAt < VOICE_SETTLE_MS) blockVoice();
-                    activeKey = null;
-                    start();
-                }, { once: true });
-                reportVoice('on');
-                return opened;
+            const key = streamKey(state);
+            const pending = open(deviceId, true);
+            const opened = await Promise.race([pending, wait(VOICE_OPEN_MS)]);
+            if (opened) {
+                if (cancelling(opened)) return useVoice(opened);
+                release(opened);
+                blockVoice();
+            } else {
+                // macOS is still asking whether we may hear system audio.
+                // Don't keep anyone waiting: listen normally now, and switch
+                // over if and when the answer is yes.
+                voiceBlocked = true;
+                probesLeft = VOICE_PROBES;
+                pending.then((late) => {
+                    if (voiceBlocked && wantsVoice() && key === streamKey(state) && cancelling(late)) {
+                        voiceBlocked = false;
+                        lateVoice = late;
+                        activeKey = null;
+                        start();
+                    } else {
+                        release(late);
+                        scheduleProbe();
+                    }
+                }, () => scheduleProbe());
             }
-            opened.getTracks().forEach((track) => track.stop());
-            blockVoice();
         }
         reportVoice('fallback');
         return open(deviceId, false);
     }
 
-    const streamKey = ({ settings, idle }) =>
-        `${settings.deviceId || 'default'}|${settings.paused}|${!!idle}|${!!settings.voiceFocus}|${voiceRetry}`;
+    const streamKey = (s) =>
+        `${s.settings.deviceId || 'default'}|${s.settings.paused}|${!!s.idle}|${wantsVoice(s)}|${voiceRetry}`;
 
     // Size, opacity and symbols are preferences, applied whenever they change.
     function applyAppearance({ orbSize, orbOpacity, symbols }) {
@@ -197,6 +233,9 @@
         try {
             stop();
             activeKey = key;
+            const ready = lateVoice;
+            lateVoice = null;
+            if (paused || state.idle) release(ready);
 
             if (paused) {
                 setMode('paused', 'Paused');
@@ -211,7 +250,7 @@
 
             let next;
             try {
-                next = await openWithFallback(deviceId);
+                next = await openWithFallback(deviceId, ready);
             } catch (error) {
                 // The saved microphone was unplugged: fall back to the default.
                 if (deviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
@@ -350,7 +389,7 @@
         stage.classList.remove('dragging');
         if (orb.hasPointerCapture(event.pointerId)) orb.releasePointerCapture(event.pointerId);
         api.dragEnd();
-        if (wasClick && event.type === 'pointerup') api.openSettings();
+        if (wasClick && event.type === 'pointerup') api.openInsights();
     }
 
     orb.addEventListener('pointerup', endDrag);
@@ -361,7 +400,7 @@
     });
     options.addEventListener('click', () => api.openSettings());
     orb.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') api.openSettings();
+        if (event.key === 'Enter' || event.key === ' ') api.openInsights();
     });
 
     /* -------------------------------------------------------------- boot */
@@ -403,7 +442,7 @@
         setTimeout(() => {
             if (stage.dataset.state !== 'listening') return;
             const learning = state.settings.sensitivityMode === 'auto' && !state.settings.calibrated;
-            flashNotice(learning ? 'Learning your voice…' : 'Click the orb for settings', 8000);
+            flashNotice(learning ? 'Learning your voice…' : 'Click the orb to see your day', 8000);
         }, 900);
     });
 })();

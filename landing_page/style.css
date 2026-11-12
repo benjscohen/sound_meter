@@ -1185,17 +1185,6 @@ blockquote {
     gap: 8px;
 }
 
-.beta {
-    padding: 2px 8px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    color: var(--ink-3);
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
 .art-muted {
     stroke: var(--ink-3);
     stroke-width: 2.4;

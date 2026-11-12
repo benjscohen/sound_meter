@@ -189,7 +189,8 @@
                     sensitivity,
                     sensitivityMode: auto ? 'auto' : 'manual',
                     launchAtLogin: launchAtLogin.checked,
-                    weeklyRecap: document.getElementById('weekly-recap').checked
+                    weeklyRecap: document.getElementById('weekly-recap').checked,
+                    voiceFocus: document.getElementById('voice-focus').checked
                 });
             }
         } finally {
@@ -214,6 +215,7 @@
     api.getState().then((state) => {
         if (Number.isFinite(state.settings.sensitivity)) sensitivity = state.settings.sensitivity;
         auto = state.settings.sensitivityMode !== 'manual';
+        document.getElementById('voice-focus-row').hidden = state.voiceSupported === false;
         render();
         requestAnimationFrame(frame);
     });
